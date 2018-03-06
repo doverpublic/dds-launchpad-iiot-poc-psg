@@ -191,7 +191,10 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Iot.Common\Iot.Common.csproj" />
+    <ProjectReference Include="..\Iot.Common\Iot.Common.csproj">
+      <Project>{35072B44-BC38-4D61-B96C-AF2BCFFAFB41}</Project>
+      <Name>Iot.Common</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.5.2">

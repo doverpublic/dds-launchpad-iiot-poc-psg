@@ -23,8 +23,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Iot.Mocks", "Iot.Mocks\Iot.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Launchpad.Iot.DeviceEmulator", "Launchpad.Iot.DeviceEmulator\Launchpad.Iot.DeviceEmulator.csproj", "{5CA93865-4B0A-4DBC-9378-BDAD1C396886}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "_Deploy", "_Deploy", "{1F2DBBB7-69AD-4F94-B7F8-5A20E3AE329A}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Launchpad.Iot.Admin.WebService", "Launchpad.Iot.Admin.WebService\Launchpad.Iot.Admin.WebService.csproj", "{5E0F0994-966D-4ACE-BE41-7FDE742683F6}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Launchpad.Iot.Insight.DataService", "Launchpad.Iot.Insight.DataService\Launchpad.Iot.Insight.DataService.csproj", "{8C5A3D25-2356-4D3D-9D63-4AF71E3D0B2C}"
@@ -32,6 +30,28 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Launchpad.Iot.Insight.WebService", "Launchpad.Iot.Insight.WebService\Launchpad.Iot.Insight.WebService.csproj", "{AFE07FB7-AF21-491F-A8CC-381C5733D437}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Launchpad.Iot.Insight.DataService.Tests", "Launchpad.Iot.Insight.DataService.Tests\Launchpad.Iot.Insight.DataService.Tests.csproj", "{2B4F1268-41D1-4335-8BCA-E1E4C6D4D76F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Build", "Build", "{5425900B-2D2D-4F9A-B4D4-4E1E7C03BC1D}"
+	ProjectSection(SolutionItems) = preProject
+		..\build\build.cmd = ..\build\build.cmd
+		..\build\clean.cmd = ..\build\clean.cmd
+		..\build\deploy.ps1 = ..\build\deploy.ps1
+		..\build\functions.psm1 = ..\build\functions.psm1
+		..\build\nuget.exe = ..\build\nuget.exe
+		..\build\obliterate.ps1 = ..\build\obliterate.ps1
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deploy", "Deploy", "{2682862D-F728-4CA8-A8BA-3A264F1AFA99}"
+	ProjectSection(SolutionItems) = preProject
+		..\build\Deploy\Cloud.POC01.Parameters.xml = ..\build\Deploy\Cloud.POC01.Parameters.xml
+		..\build\Deploy\Cloud.POC01.Profile.xml = ..\build\Deploy\Cloud.POC01.Profile.xml
+		..\build\Deploy\Cloud.Profile.xml = ..\build\Deploy\Cloud.Profile.xml
+		..\build\Deploy\DummyApplicationParameters.xml = ..\build\Deploy\DummyApplicationParameters.xml
+		..\build\Deploy\Local.1Node.Parameters.xml = ..\build\Deploy\Local.1Node.Parameters.xml
+		..\build\Deploy\Local.1Node.Profile.xml = ..\build\Deploy\Local.1Node.Profile.xml
+		..\build\Deploy\Local.5Node.Parameters.xml = ..\build\Deploy\Local.5Node.Parameters.xml
+		..\build\Deploy\Local.5Node.Profile.xml = ..\build\Deploy\Local.5Node.Profile.xml
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -98,15 +118,14 @@ Global
 		{09284C49-3741-4B96-8F24-95B5B99F4BF1} = {35FD05F1-64BC-4904-A931-17641E3AABEB}
 		{79A0B13A-6859-48C0-9517-269D788BC046} = {7C8BE60B-689C-457F-8260-5583CDF823DE}
 		{291371BE-4218-4EEC-996A-CD5B783B6CD0} = {BE5420F3-CD91-437C-9BCD-23612FB56C7B}
-		{2219253F-3D38-4287-93A9-9F61CB532044} = {1F2DBBB7-69AD-4F94-B7F8-5A20E3AE329A}
-		{4A6A00A1-E16C-4ED2-AB81-4B15AA9A6012} = {1F2DBBB7-69AD-4F94-B7F8-5A20E3AE329A}
 		{5E0F0994-966D-4ACE-BE41-7FDE742683F6} = {7C8BE60B-689C-457F-8260-5583CDF823DE}
 		{8C5A3D25-2356-4D3D-9D63-4AF71E3D0B2C} = {BE5420F3-CD91-437C-9BCD-23612FB56C7B}
 		{AFE07FB7-AF21-491F-A8CC-381C5733D437} = {BE5420F3-CD91-437C-9BCD-23612FB56C7B}
 		{2B4F1268-41D1-4335-8BCA-E1E4C6D4D76F} = {BE5420F3-CD91-437C-9BCD-23612FB56C7B}
+		{2682862D-F728-4CA8-A8BA-3A264F1AFA99} = {5425900B-2D2D-4F9A-B4D4-4E1E7C03BC1D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		EnterpriseLibraryConfigurationToolBinariesPathV6 = packages\EnterpriseLibrary.TransientFaultHandling.6.0.1304.0\lib\portable-net45+win+wp8
 		SolutionGuid = {B6BAC812-F280-40FB-A687-5E7D2B6EDADC}
+		EnterpriseLibraryConfigurationToolBinariesPathV6 = packages\EnterpriseLibrary.TransientFaultHandling.6.0.1304.0\lib\portable-net45+win+wp8
 	EndGlobalSection
 EndGlobal
