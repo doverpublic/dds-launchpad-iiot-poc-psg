@@ -18,7 +18,6 @@ namespace Launchpad.Iot.Insight.DataService.Tests
     using Microsoft.ServiceFabric.Data.Collections;
     using Xunit;
     using System.Fabric;
-    using global::Iot.Common;
 
     public class EventControllerTests
     {

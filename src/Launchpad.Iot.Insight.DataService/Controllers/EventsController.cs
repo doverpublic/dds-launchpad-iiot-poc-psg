@@ -15,7 +15,6 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
     using Microsoft.ServiceFabric.Data;
     using Microsoft.ServiceFabric.Data.Collections;
     using System.Fabric;
-    using global::Iot.Common;
     using Microsoft.AspNetCore.Hosting;
 
     [Route("api/[controller]")]

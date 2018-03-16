@@ -1,0 +1,17 @@
+﻿FieldName,timestamp,targetSite,deviceId,temperature,batteryLevel,dataPointsCount,frequency,magnitude
+FieldType,timestamp,string,string,integer,integer,integer,integerArray,integerArray
+FieldUsage,auto,key,key,,,,,
+absoluteMinValue,,,,0,0,0,0,0
+absoluteMaxValue,,,,4096,4096,1000,10000,255
+normalMinValue,,,,233,2700,,0,0
+normalMaxValue,,,,358,3600,,10000,255
+message,,client01,emu18,250,3000,3,"[200,130,110]","[110,240,205]"
+10000,,client01,emu17,200,2500,4,"[300,140,100,300]","[100,200,220,225]"
+20000,,client01,emu16,180,3500,5,"[301,130,104,345]","[110,203,228,215]"
+5000,,client01,emu18,200,3001,3,"[201,131,111]","[111,241,206]"
+10000,,client01,emu17,176,2501,4,"[301,141,101,301]","[101,201,221,226]"
+20000,,client01,emu16,201,3501,5,"[302,131,105,346]","[111,204,229,216]"
+15000,,client01,emu18,235,3002,3,"[202,132,111]","[112,242,207]"
+10000,,client01,emu17,202,2502,4,"[302,142,102,302]","[102,202,222,227]"
+20000,,client01,emu16,165,3503,5,"[303,132,106,347]","[112,205,230,217]"
+replay,,,,,,,,

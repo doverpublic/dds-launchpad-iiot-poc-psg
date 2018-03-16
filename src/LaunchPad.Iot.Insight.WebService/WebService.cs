@@ -5,7 +5,6 @@
 
 namespace Launchpad.Iot.Insight.WebService
 {
-    using global::Iot.Common;
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.ServiceFabric.Services.Communication.AspNetCore;
@@ -17,6 +16,8 @@ namespace Launchpad.Iot.Insight.WebService
     using System.IO;
     using System.Linq;
     using System.Net.Http;
+
+    using global::Iot.Common;
 
     internal sealed class WebService : StatelessService
     {
@@ -36,10 +37,10 @@ namespace Launchpad.Iot.Insight.WebService
                             "ServiceEndpoint",
                             (url, listener) =>
                             {
-                                // in this sample, tenant application names always have the form "fabric:/Launchpad.Iot.Insight/<TenantName>
-                                // This extracts the tenant name from the application name and uses it as the web application path.
-                                string tenantName = new Uri(context.CodePackageActivationContext.ApplicationName).Segments.Last();
-                                url += $"/{tenantName}";
+                                // in this sample, target site application names always have the form "fabric:/Launchpad.Iot.Insight/<TargetSiteName>
+                                // This extracts the target site name from the application name and uses it as the web application path.
+                                string targetSiteName = new Uri(context.CodePackageActivationContext.ApplicationName).Segments.Last();
+                                url += $"/{targetSiteName}";
 
                                 ServiceEventSource.Current.Message($"Listening on {url}");
 

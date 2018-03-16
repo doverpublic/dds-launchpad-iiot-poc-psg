@@ -13,16 +13,17 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
     using System.Net.Http;
     using System.Threading;
     using System.Threading.Tasks;
-    using global::Iot.Common;
     using Iot.Insight.WebService.ViewModels;
     using Microsoft.AspNetCore.Mvc;
     using Newtonsoft.Json;
     using Microsoft.AspNetCore.Hosting;
 
+    using global::Iot.Common;
+
     [Route("api/[controller]")]
     public class DevicesController : Controller
     {
-        private const string TenantDataServiceName = "DataService";
+        private const string TargetSiteDataServiceName = "DataService";
         private readonly FabricClient fabricClient;
         private readonly IApplicationLifetime appLifetime;
         private readonly HttpClient httpClient;
@@ -38,7 +39,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
         [Route("queue/length")]
         public async Task<IActionResult> GetQueueLengthAsync()
         {
-            ServiceUriBuilder uriBuilder = new ServiceUriBuilder(TenantDataServiceName);
+            ServiceUriBuilder uriBuilder = new ServiceUriBuilder(TargetSiteDataServiceName);
             Uri serviceUri = uriBuilder.Build();
 
             // service may be partitioned.
@@ -73,7 +74,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
         [Route("")]
         public async Task<IActionResult> GetDevicesAsync()
         {
-            ServiceUriBuilder uriBuilder = new ServiceUriBuilder(TenantDataServiceName);
+            ServiceUriBuilder uriBuilder = new ServiceUriBuilder(TargetSiteDataServiceName);
             Uri serviceUri = uriBuilder.Build();
 
             // service may be partitioned.

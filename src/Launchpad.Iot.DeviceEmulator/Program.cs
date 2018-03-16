@@ -6,15 +6,20 @@
 namespace Launchpad.Iot.DeviceEmulator
 {
     using System;
-    using System.Collections.Generic;
     using System.Fabric;
     using System.IO;
     using System.Linq;
     using System.Text;
+    using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Azure.Devices;
     using Microsoft.Azure.Devices.Client;
     using Newtonsoft.Json;
+
+    using System.Collections.Generic;
+    using System.Collections.Specialized;
+
+    using Launchpad.App.Common;
     using global::Iot.Common;
 
     internal class Program
@@ -24,7 +29,7 @@ namespace Launchpad.Iot.DeviceEmulator
         private static RegistryManager registryManager;
         private static FabricClient fabricClient;
         private static IEnumerable<Device> devices;
-        private static IEnumerable<string> tenants;
+        private static IEnumerable<string> targetSites;
 
         // credential fields
         private static X509Credentials credential;
@@ -107,9 +112,9 @@ namespace Launchpad.Iot.DeviceEmulator
                         try
                         {
                             devices = await registryManager.GetDevicesAsync(Int32.MaxValue);
-                            tenants = (await fabricClient.QueryManager.GetApplicationListAsync())
-                                .Where(x => x.ApplicationTypeName == Names.InsightApplicationTypeName)
-                                .Select(x => x.ApplicationName.ToString().Replace(Names.InsightApplicationNamePrefix + "/", ""));
+                            targetSites = (await fabricClient.QueryManager.GetApplicationListAsync())
+                                .Where(x => x.ApplicationTypeName == Launchpad.App.Common.Names.InsightApplicationTypeName)
+                                .Select(x => x.ApplicationName.ToString().Replace(Launchpad.App.Common.Names.InsightApplicationNamePrefix + "/", ""));
 
                             Console.WriteLine();
                             Console.WriteLine("Devices IDs: ");
@@ -120,9 +125,9 @@ namespace Launchpad.Iot.DeviceEmulator
 
                             Console.WriteLine();
                             Console.WriteLine("Insight Application URI: ");
-                            foreach (string tenant in tenants)
+                            foreach (string targetSiteName in targetSites)
                             {
-                                Console.WriteLine(tenant);
+                                Console.WriteLine(targetSiteName);
                             }
 
                             Console.WriteLine();
@@ -131,15 +136,21 @@ namespace Launchpad.Iot.DeviceEmulator
                             Console.WriteLine("2: Register random devices");
                             Console.WriteLine("3: Send data from a device");
                             Console.WriteLine("4: Send data from all devices");
-                            Console.WriteLine("5: Exit");
+                            Console.WriteLine("5: Send data from a CSV File from a device ");
+                            Console.WriteLine("6: Send data from a CSV File");
+                            Console.WriteLine("7: Exit");
 
                             string command = Console.ReadLine();
+                            string deviceId = "";
+                            string targetSite = "";
+                            string fileDataPath = "";
+                            string fieldDefinitionsPath = "";
 
                             switch (command)
                             {
                                 case "1":
                                     Console.WriteLine("Make up a Device ID: ");
-                                    string deviceId = Console.ReadLine();
+                                    deviceId = Console.ReadLine();
                                     await AddDeviceAsync(deviceId);
                                     break;
                                 case "2":
@@ -148,20 +159,46 @@ namespace Launchpad.Iot.DeviceEmulator
                                     await AddRandomDevicesAsync(num);
                                     break;
                                 case "3":
-                                    Console.WriteLine("Insight Application URI: ");
-                                    string tenant = Console.ReadLine();
+                                    Console.WriteLine("Target Application URI: ");
+                                    targetSite = Console.ReadLine();
                                     Console.WriteLine("Device ID: ");
-                                    string deviceKey = Console.ReadLine();
-                                    await SendDeviceToCloudMessagesAsync(deviceKey, tenant);
+                                    deviceId = Console.ReadLine();
+                                    await SendDeviceToCloudMessagesAsync(deviceId, targetSite);
                                     break;
                                 case "4":
-                                    Console.WriteLine("Insight Application URI: ");
-                                    string tenantName = Console.ReadLine();
+                                    Console.WriteLine("Target Site Application URI: ");
+                                    targetSite = Console.ReadLine();
                                     Console.WriteLine("Iterations: ");
                                     int iterations = Int32.Parse(Console.ReadLine());
-                                    await SendAllDevices(tenantName, iterations);
+                                    await SendAllDevices(targetSite, iterations);
                                     break;
                                 case "5":
+                                    Console.WriteLine("Target Site Application URI: ");
+                                    targetSite = Console.ReadLine();
+                                    Console.WriteLine("Device ID: ");
+                                    deviceId = Console.ReadLine();
+                                    Console.WriteLine("CSV File Path ([data only] or [data + fieldefinitions]): ");
+                                    fileDataPath = Console.ReadLine();
+                                    Console.WriteLine("CSV File Path ([fieldefinitions] or ENTER in case of [data + fieldefinitions]): ");
+                                    fieldDefinitionsPath = Console.ReadLine();
+
+                                    if(fileDataPath.Length > 0)
+                                        await SendEventsFromCSVFile(deviceId, targetSite, fileDataPath, fieldDefinitionsPath);
+                                    else
+                                        Console.WriteLine("No valid path provided for CSV data file");
+                                    break;
+                                case "6":
+                                    Console.WriteLine("CSV File Path ([data only] or [data + fieldefinitions]): ");
+                                    fileDataPath = Console.ReadLine();
+                                    Console.WriteLine("CSV File Path ([fieldefinitions] or ENTER in case of [data + fieldefinitions]): ");
+                                    fieldDefinitionsPath = Console.ReadLine();
+
+                                    if (fileDataPath.Length > 0)
+                                        await SendEventsFromCSVFile(deviceId, targetSite, fileDataPath, fieldDefinitionsPath);
+                                    else
+                                        Console.WriteLine("No valid path provided for CSV data file");
+                                    break;
+                                case "7":
                                     return;
                                 default:
                                     break;
@@ -176,7 +213,7 @@ namespace Launchpad.Iot.DeviceEmulator
                 .GetAwaiter().GetResult();
         }
 
-        private static async Task SendAllDevices(string tenant, int iterations)
+        private static async Task SendAllDevices(string targetSite, int iterations)
         {
             for (int i = 0; i < iterations; ++i)
             {
@@ -185,7 +222,7 @@ namespace Launchpad.Iot.DeviceEmulator
                     List<Task> tasks = new List<Task>(devices.Count());
                     foreach (Device device in devices)
                     {
-                        tasks.Add(SendDeviceToCloudMessagesAsync(device.Id, tenant));
+                        tasks.Add(SendDeviceToCloudMessagesAsync(device.Id, targetSite));
                     }
 
                     await Task.WhenAll(tasks);
@@ -198,22 +235,8 @@ namespace Launchpad.Iot.DeviceEmulator
             }
         }
 
-        private static async Task SendDeviceToCloudMessagesAsync(string deviceId, string tenant)
+        private static async Task SendDeviceToCloudMessagesAsync(string deviceId, string targetSite)
         {
-            string iotHubUri = connectionString.Split(';')
-                .First(x => x.StartsWith("HostName=", StringComparison.InvariantCultureIgnoreCase))
-                .Replace("HostName=", "").Trim();
-
-            Device device = devices.FirstOrDefault(x => x.Id == deviceId);
-            if (device == null)
-            {
-                Console.WriteLine("Device '{0}' doesn't exist.", deviceId);
-            }
-
-            DeviceClient deviceClient = DeviceClient.Create(
-                iotHubUri,
-                new DeviceAuthenticationWithRegistrySymmetricKey(deviceId, device.Authentication.SymmetricKey.PrimaryKey));
-
             List<object> events = new List<object>();
             for (int i = 0; i < 10; ++i)
             {
@@ -225,25 +248,84 @@ namespace Launchpad.Iot.DeviceEmulator
                 events.Add(body);
             }
 
-            Microsoft.Azure.Devices.Client.Message message;
-            JsonSerializer serializer = new JsonSerializer();
-            using (MemoryStream stream = new MemoryStream())
+            NameValueCollection keyFields = new NameValueCollection();
+
+            keyFields.Add(Launchpad.App.Common.Names.EventKeyFieldDeviceId, deviceId);
+            keyFields.Add(Launchpad.App.Common.Names.EventKeyFieldTargetSite, targetSite);
+
+            await IoTHubClient.SendMessageToIoTHubAsync(connectionString, devices, keyFields, events);
+        }
+
+        private static async Task SendEventsFromCSVFile(string deviceId, string targetSite, string fileDataPath, string fieldDefinitionsPath )
+        {
+            try
             {
-                using (StreamWriter streamWriter = new StreamWriter(stream))
+                EventsContainer events = null;
+
+                if(fieldDefinitionsPath.Length > 0 )
                 {
-                    using (JsonTextWriter jsonWriter = new JsonTextWriter(streamWriter))
-                    {
-                        serializer.Serialize(jsonWriter, events);
-                    }
+                    events = new EventsContainer(fieldDefinitionsPath);
+                }
+                else
+                {
+                    events = new EventsContainer(fileDataPath);
+
                 }
 
-                message = new Microsoft.Azure.Devices.Client.Message(stream.GetBuffer());
-                message.Properties.Add( Names.EventKeyFieldTenantId, tenant );
-                message.Properties.Add( Names.EventKeyFieldDeviceId, deviceId );
+                if ( events.EventsFlag )
+                {
+                    NameValueCollection keyFields = new NameValueCollection();
 
-                await deviceClient.SendEventAsync(message);
+                    if( deviceId.Length != 0 )
+                    {
+                        keyFields.Add(Launchpad.App.Common.Names.EventKeyFieldDeviceId, deviceId);
+                        keyFields.Add(Launchpad.App.Common.Names.EventKeyFieldTargetSite, targetSite);
+                    }
 
-                Console.WriteLine($"Sent message: {Encoding.UTF8.GetString(stream.GetBuffer())}");
+                    bool continueProcess = events.ReplayFlag;
+
+                    if (continueProcess)
+                        Console.WriteLine("Press Any Key to Halt Replay Process");
+
+                    int iterationsCount = 0;
+                    do
+                    {
+                        List<Task> tasks = new List<Task>(devices.Count());
+                        foreach (string[] messageValues in events.GetValuesList())
+                        {
+                            List<object> dataEvents = new List<object>();
+
+                            dataEvents.Add(events.GetEventMessageForValues(messageValues));
+
+                            if (deviceId.Length == 0)
+                            {
+                                keyFields = events.GetKeyFields(messageValues);
+                            }
+
+                            int waitPeriod = 0;
+                            if (int.TryParse(messageValues[0], out waitPeriod))
+                            {
+                                Thread.Sleep(waitPeriod);
+                            }
+
+                            tasks.Add(IoTHubClient.SendMessageToIoTHubAsync(connectionString, devices, keyFields, dataEvents));
+                        }
+                        
+                        await Task.WhenAll(tasks);
+                        await Task.Delay(TimeSpan.FromSeconds(1));
+
+                        if (events.ReplayFlag)
+                            Console.WriteLine("  Finished Iteration {0}", ++iterationsCount);
+
+                        if (Console.KeyAvailable)
+                            continueProcess = false;
+
+                    } while (continueProcess);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Send failed. {0}", ex.Message);
             }
         }
 

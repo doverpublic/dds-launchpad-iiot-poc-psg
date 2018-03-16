@@ -18,7 +18,6 @@ namespace Launchpad.Iot.Insight.DataService
     using Microsoft.ServiceFabric.Data.Collections;
     using Microsoft.ServiceFabric.Services.Communication.Runtime;
     using Microsoft.ServiceFabric.Services.Runtime;
-    using global::Iot.Common;
     using Microsoft.ServiceFabric.Services.Communication.AspNetCore;
 
     internal sealed class DataService : StatefulService

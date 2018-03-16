@@ -13,15 +13,18 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
     using System.Net.Http.Headers;
     using System.Threading;
     using System.Threading.Tasks;
-    using global::Iot.Common;
+
     using Microsoft.ServiceBus;
     using Microsoft.ServiceBus.Messaging;
     using Microsoft.ServiceFabric.Data;
     using Microsoft.ServiceFabric.Data.Collections;
     using Microsoft.ServiceFabric.Services.Runtime;
 
+    using global::Iot.Common;
+    using Launchpad.App.Common;
+
     /// <summary>
-    /// This service continuously pulls from IoT Hub and sends events off to tenant applications.
+    /// This service continuously pulls from IoT Hub and sends events off to target site applications.
     /// </summary>
     /// <remarks>
     /// </remarks>
@@ -121,29 +124,29 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                                                                                 eventHubReceiver.Name, eventData.PartitionKey, eventData.SequenceNumber );
                                 }
 
-                                string tenantId = (string)eventData.Properties[ Names.EventKeyFieldTenantId ];
-                                string deviceId = (string)eventData.Properties[ Names.EventKeyFieldDeviceId ];
+                                string targetSite = (string)eventData.Properties[Launchpad.App.Common.Names.EventKeyFieldTargetSite ];
+                                string deviceId = (string)eventData.Properties[Launchpad.App.Common.Names.EventKeyFieldDeviceId ];
 
-                                // This is the named service instance of the tenant data service that the event should be sent to.
-                                // The tenant ID is part of the named service instance name.
-                                // The incoming device data stream specifie which tenant the data belongs to.
-                                Uri tenantServiceName = new Uri($"{Names.InsightApplicationNamePrefix}/{tenantId}/{Names.InsightDataServiceName}");
-                                long tenantServicePartitionKey = FnvHash.Hash(deviceId);
+                                // This is the named service instance of the target site data service that the event should be sent to.
+                                // The targetSite id is part of the named service instance name.
+                                // The incoming device data stream specifie which target site the data belongs to.
+                                Uri targetSiteServiceName = new Uri($"{Launchpad.App.Common.Names.InsightApplicationNamePrefix}/{targetSite}/{Launchpad.App.Common.Names.InsightDataServiceName}");
+                                long targetSiteServicePartitionKey = FnvHash.Hash(deviceId);
 
-                                ServiceEventSource.Current.ServiceMessage(this.Context, "About to post data to Insight Data Service from device '{0}' to tenant '{1}' - partitionKey '{2}' - serviceName '{3}'",
-                                                                            deviceId, tenantId, tenantServicePartitionKey, tenantServiceName );
+                                ServiceEventSource.Current.ServiceMessage(this.Context, "About to post data to Insight Data Service from device '{0}' to target site '{1}' - partitionKey '{2}' - serviceName '{3}'",
+                                                                            deviceId, targetSite, targetSiteServicePartitionKey, targetSiteServiceName );
 
-                                // The tenant data service exposes an HTTP API.
+                                // The target site data service exposes an HTTP API.
                                 // For incoming device events, the URL is /api/events/{deviceId}
                                 // This sets up a URL and sends a POST request with the device JSON payload.
                                 Uri postUrl = new HttpServiceUriBuilder()
-                                    .SetServiceName(tenantServiceName)
-                                    .SetPartitionKey(tenantServicePartitionKey)
+                                    .SetServiceName(targetSiteServiceName)
+                                    .SetPartitionKey(targetSiteServicePartitionKey)
                                     .SetServicePathAndQuery($"/api/events/{deviceId}")
                                     .Build();
 
-                                ServiceEventSource.Current.ServiceMessage(this.Context, "Ready to post data to Insight Data Service from device '{0}' to tenant '{1}' - partitionKey '{2}' - serviceName '{3}' - url '{4}'",
-                                                                            deviceId, tenantId, tenantServicePartitionKey, tenantServiceName, postUrl.PathAndQuery );
+                                ServiceEventSource.Current.ServiceMessage(this.Context, "Ready to post data to Insight Data Service from device '{0}' to taget site '{1}' - partitionKey '{2}' - serviceName '{3}' - url '{4}'",
+                                                                            deviceId, targetSite, targetSiteServicePartitionKey, targetSiteServiceName, postUrl.PathAndQuery );
 
                                 // The device stream payload isn't deserialized and buffered in memory here.
                                 // Instead, we just can just hook the incoming stream from Iot Hub right into the HTTP request stream.
@@ -158,13 +161,13 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                                         ServiceEventSource.Current.ServiceMessage(
                                             this.Context,
                                             "Sent event data to insight service '{0}' with partition key '{1}'. Result: {2}",
-                                            tenantServiceName,
-                                            tenantServicePartitionKey,
+                                            targetSiteServiceName,
+                                            targetSiteServicePartitionKey,
                                             response.StatusCode.ToString());
 
                                         if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
                                         {
-                                            // This service expects the receiving tenant service to return HTTP 400 if the device message was malformed.
+                                            // This service expects the receiving target site service to return HTTP 400 if the device message was malformed.
                                             // In this example, the message is simply logged.
                                             // Your application should handle all possible error status codes from the receiving service
                                             // and treat the message as a "poison" message.
@@ -175,7 +178,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                                             ServiceEventSource.Current.ServiceMessage(
                                                 this.Context,
                                                 "Insight service '{0}' returned HTTP 400 due to a bad device message from device '{1}'. Error message: '{2}'",
-                                                tenantServiceName,
+                                                targetSiteServiceName,
                                                 deviceId,
                                                 responseContent);
                                         }
@@ -184,7 +187,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
 
                                 // Save the current Iot Hub data stream offset.
                                 // This will allow the service to pick up from its current location if it fails over.
-                                // Duplicate device messages may still be sent to the the tenant service
+                                // Duplicate device messages may still be sent to the the target site service
                                 // if this service fails over after the message is sent but before the offset is saved.
                                 if (++offsetIteration % OffsetInterval == 0)
                                 {

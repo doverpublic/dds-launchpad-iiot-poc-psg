@@ -7,7 +7,6 @@ namespace Launchpad.Iot.Admin.WebService.Controllers
 {
     using Launchpad.Iot.Admin.WebService.Models;
     using Launchpad.Iot.Admin.WebService.ViewModels;
-    using global::Iot.Common;
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.ServiceBus.Messaging;
@@ -18,6 +17,10 @@ namespace Launchpad.Iot.Admin.WebService.Controllers
     using System.Fabric.Query;
     using System.Linq;
     using System.Threading.Tasks;
+
+    using global::Iot.Common;
+    using Launchpad.App.Common;
+
 
     [Route("api/[Controller]")]
     public class EventsProcessorController : Controller
@@ -39,7 +42,7 @@ namespace Launchpad.Iot.Admin.WebService.Controllers
 
             return this.Ok(
                 applications
-                    .Where(x => x.ApplicationTypeName == Names.EventsProcessorApplicationTypeName)
+                    .Where(x => x.ApplicationTypeName == Launchpad.App.Common.Names.EventsProcessorApplicationTypeName)
                     .Select(
                         x =>
                             new ApplicationViewModel(
@@ -63,8 +66,8 @@ namespace Launchpad.Iot.Admin.WebService.Controllers
             appInstanceParameters["IotHubConnectionString"] = parameters.IotHubConnectionString;
 
             ApplicationDescription application = new ApplicationDescription(
-                new Uri($"{Names.EventsProcessorApplicationPrefix}/{name}"),
-                Names.EventsProcessorApplicationTypeName,
+                new Uri($"{Launchpad.App.Common.Names.EventsProcessorApplicationPrefix}/{name}"),
+                Launchpad.App.Common.Names.EventsProcessorApplicationTypeName,
                 parameters.Version,
                 appInstanceParameters);
 
@@ -72,7 +75,7 @@ namespace Launchpad.Iot.Admin.WebService.Controllers
             await this.fabricClient.ApplicationManager.CreateApplicationAsync(application, this.operationTimeout, this.appLifetime.ApplicationStopping);
 
             // Next, create named instances of the services that run in the application.
-            ServiceUriBuilder serviceNameUriBuilder = new ServiceUriBuilder(application.ApplicationName.ToString(), Names.EventsProcessorRouterServiceName);
+            ServiceUriBuilder serviceNameUriBuilder = new ServiceUriBuilder(application.ApplicationName.ToString(), Launchpad.App.Common.Names.EventsProcessorRouterServiceName);
 
             StatefulServiceDescription service = new StatefulServiceDescription()
             { 
@@ -82,7 +85,7 @@ namespace Launchpad.Iot.Admin.WebService.Controllers
                 TargetReplicaSetSize = 3,
                 PartitionSchemeDescription = new UniformInt64RangePartitionSchemeDescription(eventHubInfo.PartitionCount, 0, eventHubInfo.PartitionCount - 1),
                 ServiceName = serviceNameUriBuilder.Build(),
-                ServiceTypeName = Names.EventsProcessorRouterServiceTypeName
+                ServiceTypeName = Launchpad.App.Common.Names.EventsProcessorRouterServiceTypeName
             };
 
             await this.fabricClient.ServiceManager.CreateServiceAsync(service, this.operationTimeout, this.appLifetime.ApplicationStopping);
@@ -97,7 +100,7 @@ namespace Launchpad.Iot.Admin.WebService.Controllers
             try
             {
                 await this.fabricClient.ApplicationManager.DeleteApplicationAsync(
-                    new DeleteApplicationDescription(new Uri($"{Names.EventsProcessorApplicationPrefix}/{name}")),
+                    new DeleteApplicationDescription(new Uri($"{Launchpad.App.Common.Names.EventsProcessorApplicationPrefix}/{name}")),
                     this.operationTimeout,
                     this.appLifetime.ApplicationStopping);
             }

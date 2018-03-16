@@ -12,7 +12,6 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.ServiceFabric.Data;
     using Microsoft.ServiceFabric.Data.Collections;
-    using global::Iot.Common;
     using Microsoft.AspNetCore.Hosting;
 
     [Route("api/[controller]")]
@@ -48,7 +47,12 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                         new
                         {
                             Id = enumerator.Current.Key,
-                            Timestamp = enumerator.Current.Value.Timestamp
+                            Timestamp = enumerator.Current.Value.Timestamp,
+                            Temperature = enumerator.Current.Value.Temperature,
+                            BatteryLevel = enumerator.Current.Value.BatteryLevel,
+                            DataPointsCount = enumerator.Current.Value.DataPointsCount,
+                            Frequency = enumerator.Current.Value.Frequency,
+                            Magnitude = enumerator.Current.Value.Magnitude
                         });
                 }
             }

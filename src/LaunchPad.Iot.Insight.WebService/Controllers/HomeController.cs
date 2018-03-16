@@ -20,7 +20,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
         public IActionResult Index()
         {
-            this.ViewData["Tenant"] = this.context.ServiceName.AbsolutePath.Split('/').Last();
+            this.ViewData["TargetSite"] = this.context.ServiceName.AbsolutePath.Split('/').Last();
             return this.View();
         }
 

@@ -23,15 +23,15 @@
         <div class="tile">
             <h4 class="header">Add Insight Application</h4>
             <div class="addApplication">
-                <label class="label">Name</label><input id="tenantName" type="text" placeholder="example: Contoso"/>
-                <label class="label">Data Service Partition Count</label><input id="tenantPartitionCount" type="text" placeholder="example: 2"/>
-                <label class="label">Web Service Instance Count</label><input id="tenantInstanceCount" type="text" placeholder="1 for local, -1 for Azure"/>
-                <button id="addTenantButton">Add</button>
+                <label class="label">Name</label><input id="targetSiteName" type="text" placeholder="example: Contoso"/>
+                <label class="label">Data Service Partition Count</label><input id="targetSitePartitionCount" type="text" placeholder="example: 2"/>
+                <label class="label">Target Site Service Instance Count</label><input id="targetSiteInstanceCount" type="text" placeholder="1 for local, -1 for Azure"/>
+                <button id="addTargetSiteButton">Add</button>
             </div>
         </div>
         <div class="tile">
-            <h4 class="header">List of Running Insight Applications</h4>
-            <ul id="tenantList"></ul>
+            <h4 class="header">List of Running Target Site Applications</h4>
+            <ul id="targetSiteList"></ul>
         </div>
     </div>
 </div>
@@ -172,17 +172,17 @@
                     })
             });
 
-            $('#addTenantButton').click(function() {
+            $('#addTargetSiteButton').click(function() {
                 var button = $(this);
                 button.prop("disabled", true);
 
                 $result.html('');
                 $result.removeClass();
 
-                var name = $('#tenantName').val();
+                var name = $('#targetSiteName').val();
                 var params = {};
-                params.DataPartitionCount = $('#tenantPartitionCount').val();
-                params.WebInstanceCount = $('#tenantInstanceCount').val();
+                params.DataPartitionCount = $('#targetSitePartitionCount').val();
+                params.WebInstanceCount = $('#targetSiteInstanceCount').val();
                 params.Version = '1.0.0';
 
                 $.ajax({
@@ -207,7 +207,7 @@
             });
 
             refreshApplicationList('/api/eventsprocessor', $('#iotHubList'), eventsProcessorApplicationDetails);
-            refreshApplicationList('/api/insights', $('#tenantList'), insightApplicationDetails);
+            refreshApplicationList('/api/insights', $('#targetSiteList'), insightApplicationDetails);
 
         });
 

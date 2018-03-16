@@ -6,11 +6,8 @@
     <AssemblyName>Launchpad.Iot.Admin.WebService</AssemblyName>
     <OutputType>Exe</OutputType>
     <IsServiceFabricServiceProject>True</IsServiceFabricServiceProject>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Iot.Common\Iot.Common.csproj" />
-  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics" Version="1.1.2" />
@@ -36,6 +33,11 @@
 
   <ItemGroup>
     <DotNetCliToolReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Tools" Version="1.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Iot.Common\Iot.Common.csproj" />
+    <ProjectReference Include="..\Launchpad.App.Common\Launchpad.App.Common.csproj" />
   </ItemGroup>
 
 </Project>

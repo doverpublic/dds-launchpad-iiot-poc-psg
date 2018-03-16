@@ -4,11 +4,13 @@
     <TargetFramework>net452</TargetFramework>
     <PlatformTarget>x64</PlatformTarget>
     <AssemblyName>Launchpad.Iot.Insight.DataService.Tests</AssemblyName>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Iot.Common\Iot.Common.csproj" />
     <ProjectReference Include="..\Iot.Mocks\Iot.Mocks.csproj" />
+    <ProjectReference Include="..\Launchpad.App.Common\Launchpad.App.Common.csproj" />
     <ProjectReference Include="..\Launchpad.Iot.Insight.DataService\Launchpad.Iot.Insight.DataService.csproj" />
   </ItemGroup>
 
