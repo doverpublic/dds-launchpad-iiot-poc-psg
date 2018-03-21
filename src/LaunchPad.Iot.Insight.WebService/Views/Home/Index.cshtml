@@ -5,7 +5,7 @@
 <div id="main">
     <div id="result"></div>
     <div class="tile">
-        <h3>Count of Device Events Queued for Processing:</h3>
+        <h3>Count of Device Events In Process:</h3>
         <div id="queueLength">Loading..</div>
     </div>
     <div class="tile">
@@ -35,25 +35,33 @@
                         contentType: 'application/json',
                         dataType: 'json'
                     })
-                    .done(function(devices) {
+                    .done(function (devices) {
+
+                        //<a id="myLink" title="Click to do something" href = "#" onclick= "MyFunction();return false;" > link text</a >
+                        var reportPath = path + '/run/report'
 
                         $deviceList.html('');
+
+                        $deviceList.append(
+                            '<h4>Last Posted Events By Device</h4>' + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a id="runReport" href="#" onclick="popitup(' + "'" + reportPath + "','Report View');return false;" + '">View Report</a>' +
+                            '<hr>'
+                        );
+
                         for (var i = 0; i < devices.length; ++i) {
                             var device = devices[i];
                             $deviceList.append(
                                 '<li>' +
                                 '<div class="deviceInfo">' +
-                                '<h5>' + device.id + '</h5>' +
+                                '<h5>' + device.id + '</h5>' + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' +
                                 '<ul class="deviceData">' +
-                                '<li><label>Timestamp          :</label>' + device.timestamp + '</li>' +
-                                '<li><label>Measurement Type   :</label>' + device.measurementType + '</li>' +
-                                '<li><label>Temperature        :</label>' + device.temperature + '</li>' +
-                                '<li><label>Battery Level      :</label>' + device.batteryLevel + '</li>' +
-                                '<li><label>Data Points Count  :</label>' + device.dataPointsCount + '</li>' +
-                                '<li><label>Frequency          :</label>' + device.frequency + '</li>' +
-                                '<li><label>Magnitude          :</label>' + device.magnitude + '</li>' +
+                                '<li><label>Timestamp          :</label>&nbsp;' + device.timestamp + '</li>' +
+                                '<li><label>Measurement Type   :</label>&nbsp;' + device.measurementType + '</li>' +
+                                '<li><label>Temperature        :</label>&nbsp;' + device.temperature + '</li>' +
+                                '<li><label>Battery Level      :</label>&nbsp;' + device.batteryLevel + '</li>' +
+                                '<li><label>Data Points Count  :</label>&nbsp;' + device.dataPointsCount + '</li>' +
+                                '<li><label>Frequency          :</label>&nbsp;' + device.frequency + '</li>' +
+                                '<li><label>Magnitude          :</label>&nbsp;' + device.magnitude + '</li>' +
                                 '</ul > ' +
-                                '<iframe width="800" height="600" src="https://app.powerbi.com/view?r=eyJrIjoiMjBiNGU4YTYtY2M4MS00YjY4LWFjOTEtODQ3NmY0MmM5MTVkIiwidCI6IjNkMmQyYjZmLTA2MWEtNDhiNi1iNGIzLTkzMTJkNjg3ZTNhMSIsImMiOjN9" frameborder="0" allowFullScreen="true"></iframe>'  +
                                 '</div>' +
                                 '</li>');
                         }
@@ -61,7 +69,7 @@
                     .error(function(error) {
                         $result.removeClass();
                         $result.addClass('errorResult');
-                        $result.html('Failed to refresh info from ' + apiUrl + '- (1)[' + error.responseText + ']');
+                        $result.html('Failed to refresh info from [' + apiUrl + '] - Message[' + error.responseText + ']');
                     })
                     .always(function() {
                         setTimeout(function() {
@@ -85,7 +93,7 @@
                     .error(function(error) {
                         $result.removeClass();
                         $result.addClass('errorResult');
-                        $result.html('Failed to refresh info from ' + apiUrl + '- (2)[' + error.responseText + ']');
+                        $result.html('Failed to refresh info from [' + apiUrl + '] - [ Message[' + error.responseText + ']');
                     })
                     .always(function() {
                         setTimeout(function() {
@@ -100,6 +108,13 @@
             refreshQueueLength('/api/devices/queue/length', $('#queueLength'));
 
         });
+
+        function popitup(url, windowName)
+        {
+            newwindow = window.open(url, windowName, 'height=700,width=1000,location=no,menubar=no,status=no,toolbar=no,titlebar=no,left=50,top=50');
+            if (window.focus) { newwindow.focus() }
+            return false;
+        }
 
     </script>
 }

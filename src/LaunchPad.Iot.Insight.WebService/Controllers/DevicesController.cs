@@ -11,12 +11,12 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
     using System.Fabric.Query;
     using System.IO;
     using System.Net.Http;
-    using System.Threading;
     using System.Threading.Tasks;
     using Iot.Insight.WebService.ViewModels;
     using Microsoft.AspNetCore.Mvc;
     using Newtonsoft.Json;
     using Microsoft.AspNetCore.Hosting;
+
 
     using global::Iot.Common;
 
@@ -28,11 +28,14 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
         private readonly IApplicationLifetime appLifetime;
         private readonly HttpClient httpClient;
 
-        public DevicesController(FabricClient fabricClient, HttpClient httpClient, IApplicationLifetime appLifetime)
+        private readonly StatelessServiceContext context;
+
+        public DevicesController(FabricClient fabricClient, HttpClient httpClient, IApplicationLifetime appLifetime, StatelessServiceContext context)
         {
             this.fabricClient = fabricClient;
             this.httpClient = httpClient;
             this.appLifetime = appLifetime;
+            this.context = context;
         }
 
         [HttpGet]
@@ -72,7 +75,8 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
         [HttpGet]
         [Route("")]
-        public async Task<IActionResult> GetDevicesAsync()
+        [Route("device/{deviceId}/timestamp/{timestampVal}")]
+        public async Task<IActionResult> GetDevicesAsync( string deviceId = null, string timestampVal = null)
         {
             ServiceUriBuilder uriBuilder = new ServiceUriBuilder(TargetSiteDataServiceName);
             Uri serviceUri = uriBuilder.Build();
@@ -106,7 +110,20 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
                         if (result != null)
                         {
-                            deviceViewModels.AddRange(result);
+                            if( deviceId == null )
+                                deviceViewModels.AddRange(result);
+                            else
+                            {
+                                DateTimeOffset timestamp = new DateTimeOffset();
+                                timestamp = DateTime.Parse(timestampVal);
+
+                                foreach ( DeviceViewModel device in result )
+                                {
+                                    if (device.Id.Equals(deviceId, StringComparison.InvariantCultureIgnoreCase) &&
+                                        device.Timestamp == timestamp)
+                                        deviceViewModels.Add(device);
+                                }
+                            }
                         }
                     }
                 }
@@ -114,5 +131,9 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
             return this.Ok(deviceViewModels);
         }
+
+
+        // PRIVATE METHODS
+
     }
 }

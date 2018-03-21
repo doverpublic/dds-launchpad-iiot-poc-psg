@@ -5,11 +5,14 @@
 
 namespace Launchpad.Iot.Insight.WebService
 {
+    using System;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Logging;
+
+    using global::Iot.Common;
 
     public class Startup
     {
@@ -17,10 +20,27 @@ namespace Launchpad.Iot.Insight.WebService
         {
             IConfigurationBuilder builder = new ConfigurationBuilder()
                 .SetBasePath(env.ContentRootPath)
-                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                 .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true)
                 .AddEnvironmentVariables();
             this.Configuration = builder.Build();
+
+            Console.WriteLine("On Launchpad.Iot.Insight.WebService Startup - Configuration has Sections");
+            Console.WriteLine("=============================================================================");
+            foreach ( var section in this.Configuration.GetChildren() )
+            {
+                ManageAppSettings.AddUpdateAppSettings(section.Key, section.Value);
+
+                string value = section.Value;
+
+                if( section.Key.ToLower().Contains( "password" ) )
+                {
+                    value = "****************"; 
+                }
+
+                Console.WriteLine( "Key=" + section.Key + " Path=" + section.Path + " Value=" + value + " To String=" + section.ToString() );
+            }
+            Console.WriteLine("=============================================================================");
         }
 
         public IConfigurationRoot Configuration { get; }

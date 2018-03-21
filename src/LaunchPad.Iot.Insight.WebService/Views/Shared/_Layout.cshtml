@@ -3,19 +3,24 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>@ViewData["TargetSite"] Dashboard</title>
+    <title>@ViewData["TargetSite"] - @ViewData["PageTitle"]</title>
     <link rel="stylesheet" href="~/css/site.css"/>
+    <link rel="stylesheet" href="~/css/style.css"/>
+	<script src="https://code.jquery.com/jquery-3.2.1.min.js"
+		integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+		crossorigin="anonymous">
+	</script>
 </head>
 <body>
-<div class="container body-content">
-    <header>
-        <h1>@ViewData["TargetSite"]</h1>Dashboard
-    </header>
-    @RenderBody()
-    <footer></footer>
-</div>
+    <div class="container body-content">
+        <header>
+            <h1>@ViewData["HeaderTitle"]</h1>
+        </header>
+        @RenderBody()
+        <footer></footer>
+    </div>
     <script src="~/lib/jquery/dist/jquery.js"></script>
     <script src="~/js/site.js"></script>
-@RenderSection("scripts", required: false)
+    @RenderSection("scripts", required: false)
 </body>
 </html>
