@@ -49,6 +49,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                             Id = enumerator.Current.Key,
                             Timestamp = enumerator.Current.Value.Timestamp,
                             MeasurementType = enumerator.Current.Value.MeasurementType,
+                            SensorIndex = enumerator.Current.Value.SensorIndex,
                             Temperature = enumerator.Current.Value.Temperature,
                             BatteryLevel = enumerator.Current.Value.BatteryLevel,
                             DataPointsCount = enumerator.Current.Value.DataPointsCount,

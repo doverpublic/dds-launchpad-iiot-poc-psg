@@ -16,7 +16,7 @@ namespace Launchpad.App.Common
     public static class Names
     {
         public const string EventKeyFieldDeviceId                   = Iot.Common.Names.EVENT_KEY_DEVICE_ID;
-        public const string EventKeyFieldTargetSite                  = Iot.Common.Names.EVENT_KEY_TARGET_SITE;
+        public const string EventKeyFieldTargetSite                 = Iot.Common.Names.EVENT_KEY_TARGET_SITE;
 
         public const string EventsProcessorApplicationPrefix        = "fabric:/Launchpad.Iot.EventsProcessor";
         public const string EventsProcessorApplicationTypeName      = "LaunchpadIotEventsProcessorApplicationType";

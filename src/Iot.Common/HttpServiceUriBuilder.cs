@@ -172,5 +172,36 @@ namespace Iot.Common
             this.ServicePathAndQuery = servicePathAndQuery;
             return this;
         }
+
+        //Convenience methods
+        public string GetServiceNameHostName()
+        {
+            return ServiceName.Segments[1].TrimEnd('/');
+        }
+
+        public string GetServiceNameHostType()
+        {
+            return ServiceName.Segments[ServiceName.Segments.Length - 1];
+        }
+
+        public string GetServiceNameSite()
+        {
+            return ServiceName.Segments[2].TrimEnd('/');
+        }
+
+        public string GetServiceNameSiteHomePath()
+        {
+            return "/" + GetServiceNameSite();
+        }
+
+        public string GetServiceNameSitePath()
+        {
+            string strRet = "/";
+
+            for (int index = 2; index < (ServiceName.Segments.Length - 1); index++)
+                strRet += ServiceName.Segments[index];
+
+            return strRet;
+        }
     }
 }

@@ -138,13 +138,15 @@ namespace Launchpad.Iot.DeviceEmulator
                             Console.WriteLine("4: Send data from all devices");
                             Console.WriteLine("5: Send data from a CSV File from a device ");
                             Console.WriteLine("6: Send data from a CSV File");
-                            Console.WriteLine("7: Exit");
+                            Console.WriteLine("7: Send data from a JSON File");
+                            Console.WriteLine("8: Exit");
 
                             string command = Console.ReadLine();
                             string deviceId = "";
                             string targetSite = "";
                             string fileDataPath = "";
                             string fieldDefinitionsPath = "";
+                            string messageContent = "";
 
                             switch (command)
                             {
@@ -163,7 +165,9 @@ namespace Launchpad.Iot.DeviceEmulator
                                     targetSite = Console.ReadLine();
                                     Console.WriteLine("Device ID: ");
                                     deviceId = Console.ReadLine();
-                                    await SendDeviceToCloudMessagesAsync(deviceId, targetSite);
+                                    Console.WriteLine("Message Content or ENTER to create dummy messages:");
+                                    messageContent = Console.ReadLine();
+                                    await SendDeviceToCloudMessagesAsync(deviceId, targetSite, messageContent);
                                     break;
                                 case "4":
                                     Console.WriteLine("Target Site Application URI: ");
@@ -199,6 +203,15 @@ namespace Launchpad.Iot.DeviceEmulator
                                         Console.WriteLine("No valid path provided for CSV data file");
                                     break;
                                 case "7":
+                                    Console.WriteLine("Target Application URI: ");
+                                    targetSite = Console.ReadLine();
+                                    Console.WriteLine("Device ID: ");
+                                    deviceId = Console.ReadLine();
+                                    Console.WriteLine("JSON File Path:");
+                                    fileDataPath = Console.ReadLine();
+                                    await SendEventsFromJSONFile(deviceId, targetSite, fileDataPath);
+                                    break;
+                                case "8":
                                     return;
                                 default:
                                     break;
@@ -235,17 +248,21 @@ namespace Launchpad.Iot.DeviceEmulator
             }
         }
 
-        private static async Task SendDeviceToCloudMessagesAsync(string deviceId, string targetSite)
+        private static async Task SendDeviceToCloudMessagesAsync(string deviceId, string targetSite, string messageContent = null)
         {
             List<object> events = new List<object>();
-            for (int i = 0; i < 10; ++i)
-            {
-                var body = new
-                {
-                    Timestamp = DateTimeOffset.UtcNow.Subtract(TimeSpan.FromMinutes(i))
-                };
 
-                events.Add(body);
+            if( messageContent == null || messageContent.Length == 0 )
+            {
+                for (int i = 0; i < 10; ++i)
+                {
+                    var body = new
+                    {
+                        Timestamp = DateTimeOffset.UtcNow.Subtract(TimeSpan.FromMinutes(i))
+                    };
+
+                    events.Add(body);
+                }
             }
 
             NameValueCollection keyFields = new NameValueCollection();
@@ -253,7 +270,7 @@ namespace Launchpad.Iot.DeviceEmulator
             keyFields.Add(Launchpad.App.Common.Names.EventKeyFieldDeviceId, deviceId);
             keyFields.Add(Launchpad.App.Common.Names.EventKeyFieldTargetSite, targetSite);
 
-            await IoTHubClient.SendMessageToIoTHubAsync(connectionString, devices, keyFields, events);
+            await IoTHubClient.SendMessageToIoTHubAsync(connectionString, devices, keyFields, events, messageContent);
         }
 
         private static async Task SendEventsFromCSVFile(string deviceId, string targetSite, string fileDataPath, string fieldDefinitionsPath )
@@ -322,6 +339,25 @@ namespace Launchpad.Iot.DeviceEmulator
 
                     } while (continueProcess);
                 }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Send failed. {0}", ex.Message);
+            }
+        }
+
+        private static async Task SendEventsFromJSONFile(string deviceId, string targetSite, string fileDataPath )
+        {
+            try
+            {
+                StreamReader reader = new StreamReader(fileDataPath);
+                string messageContent = reader.ReadToEnd();
+                reader.Close();
+                
+                if( messageContent != null && messageContent.Length > 0 )
+                    await SendDeviceToCloudMessagesAsync(deviceId, targetSite, messageContent);
+                else
+                    Console.WriteLine("Message file {0} is empty or unreadable", fileDataPath);
             }
             catch (Exception ex)
             {

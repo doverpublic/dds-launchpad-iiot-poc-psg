@@ -11,10 +11,11 @@ namespace Launchpad.Iot.Insight.DataService.Models
     [DataContract]
     public class DeviceEvent
     {
-        public DeviceEvent(DateTimeOffset timestamp, string measurementType, int temperature, int batteryLevel, int dataPointsCount, int[] frequency, int[] magnitude )
+        public DeviceEvent(DateTimeOffset timestamp, string measurementType, int sensorIndex, int temperature, int batteryLevel, int dataPointsCount, int[] frequency, int[] magnitude )
         {
             this.Timestamp = timestamp;
             this.MeasurementType = measurementType;
+            this.SensorIndex = sensorIndex;
             this.Temperature = temperature;
             this.BatteryLevel = batteryLevel;
             this.DataPointsCount = dataPointsCount;
@@ -26,6 +27,8 @@ namespace Launchpad.Iot.Insight.DataService.Models
         public DateTimeOffset Timestamp { get; private set; }
         [DataMember]
         public string MeasurementType { get; private set; }
+        [DataMember]
+        public int SensorIndex { get; private set; }
         [DataMember]
         public int Temperature { get; private set; }
         [DataMember]

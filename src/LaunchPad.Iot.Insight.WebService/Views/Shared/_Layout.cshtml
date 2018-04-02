@@ -1,26 +1,196 @@
 ﻿<!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["TargetSite"] - @ViewData["PageTitle"]</title>
-    <link rel="stylesheet" href="~/css/site.css"/>
-    <link rel="stylesheet" href="~/css/style.css"/>
-	<script src="https://code.jquery.com/jquery-3.2.1.min.js"
-		integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
-		crossorigin="anonymous">
-	</script>
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js"
+            integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+            crossorigin="anonymous">
+    </script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <link href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css" rel="stylesheet">
+    <!-- Internal definitions for Dialogs -->
+    <style>
+        .ui-widget-header, .ui-state-default, ui-button {
+            background: #b9cd6d;
+            border: 1px solid #b9cd6d;
+            color: #FFFFFF;
+            font-weight: bold;
+        }
+    </style>
+    <link rel="stylesheet" href="~/css/site.css" />
+    <link rel="stylesheet" href="~/css/style.css" />
+    <script>
+        var registerNewUser = true;
+
+        if ('@ViewBag.RegisterUser' == 'False')
+            registerUser = false;
+
+        var confirmPassword = "";
+    </script>
 </head>
 <body>
+    @model Iot.Common.UserProfile
+
     <div class="container body-content">
         <header>
-            <h1>@ViewData["HeaderTitle"]</h1>
+            <div id="headerLeft" class="div-left">
+                <h1>@ViewData["HeaderTitle"]</h1>
+            </div>
+            <div id="headerRight" class="div-right"></div>
+            <div id="headerRight1" class="div-right"></div>
+            <div id="loginDialog" title="Login">
+                @using (Html.BeginForm("login", "Home", FormMethod.Post))
+                {
+                    @Html.ValidationSummary(true, "", new { @class = "text-danger"})
+                    <fieldset>
+                        @Html.AntiForgeryToken()
+                        @Html.ValidationSummary(true)
+                        @if (@ViewBag.Message != null)
+                        {
+                            <div style="border: 1px solid red">@ViewBag.Message</div>
+                        }
+                        
+                        <table>
+                            <tr>
+                                <td>@Html.LabelFor(a => a.UserName)</td>
+                                <td>@Html.TextBoxFor(a => a.UserName)</td>
+                                <td>@Html.ValidationMessageFor(a => a.UserName, "", new { @class = "text-danger" })</td>
+                            </tr>
+                            <tr>
+                                <td>@Html.LabelFor(a => a.Password)</td>
+                                <td>@Html.PasswordFor(a => a.Password)</td>
+                                <td>@Html.ValidationMessageFor(a => a.Password, "", new { @class = "text-danger" })</td>
+                            </tr>
+                            @if ("@Html.Raw( Model.NeedPasswordReset)" == "True")
+                            {
+                                <tr>
+                                    <td>@Html.Label("ConfirmPassword")</td>
+                                    <td>@Html.Password("ConfirmPassword")</td>
+                                    <td>@Html.ValidationMessage("ConfirmPassword", "", new { @class = "text-danger" })</td>
+                                </tr>
+                            }
+                            <tr>
+                                <td></td>
+                                <td><input type="submit" value="Login" /></td>
+                                <td></td>
+                            </tr>
+                        </table>
+                    </fieldset>
+                }
+            </div>
+            <div id="registrationDialog" title="User Registration">
+                @using (Html.BeginForm("login", "Home", FormMethod.Post))
+                {
+                    @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+            
+                    <fieldset>
+                        @Html.AntiForgeryToken()
+                        @Html.ValidationSummary(true)
+                        @if (@ViewBag.Message != null)
+                        {
+                            <div style="border: 1px solid red">@ViewBag.Message</div>
+                        }
+                
+                        <table>
+                            <tr>
+                                <td>@Html.LabelFor(a => a.FirstName)</td>
+                                <td>@Html.TextBoxFor(a => a.FirstName)</td>
+                                <td>@Html.ValidationMessageFor(a => a.FirstName, "", new { @class = "text-danger" })</td>
+                            </tr>
+                            <tr>
+                                <td>@Html.LabelFor(a => a.LastName)</td>
+                                <td>@Html.TextBoxFor(a => a.LastName)</td>
+                                <td>@Html.ValidationMessageFor(a => a.LastName, "", new { @class = "text-danger" })</td>
+                            </tr>
+                            <tr>
+                                <td>@Html.LabelFor(a => a.UserName)</td>
+                                <td>@Html.TextBoxFor(a => a.UserName)</td>
+                                <td>@Html.ValidationMessageFor(a => a.UserName, "", new { @class = "text-danger" })</td>
+                            </tr>
+                            <tr>
+                                <td>@Html.LabelFor(a => a.Password)</td>
+                                <td>@Html.PasswordFor(a => a.Password)</td>
+                                <td>@Html.ValidationMessageFor(a => a.Password, "", new { @class = "text-danger" })</td>
+                            </tr>
+                            <tr>
+                                <td>@Html.Label("ConfirmPassword")</td>
+                                <td>@Html.Password("ConfirmPassword")</td>
+                                <td>@Html.ValidationMessage("ConfirmPassword", "", new { @class = "text-danger" })</td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td><input type="submit" value="Register and Login" /></td>
+                                <td></td>
+                            </tr>
+                        </table>
+                    </fieldset>
+                }
+            </div>
         </header>
         @RenderBody()
         <footer></footer>
     </div>
-    <script src="~/lib/jquery/dist/jquery.js"></script>
-    <script src="~/js/site.js"></script>
     @RenderSection("scripts", required: false)
+
+    <script>
+        var loginMessage = "@ViewBag.Message";
+        var loginUsername = "@ViewBag.UserName";
+        var optLogin = {
+            autoOpen: false,
+            modal: true,
+            hide: "puff",
+            show: "slide",
+            height: 200,
+            width: 400
+        };
+        var optRegistration = {
+            autoOpen: false,
+            modal: false,
+            hide: "puff",
+            show: "slide",
+            height: 250,
+            width : 400
+        };
+        $(function () {
+            $("#loginDialog").dialog(optLogin);
+            $("#openLoginDialog").click(function () {
+                $("#loginDialog").dialog("open");
+            });
+            $("#registrationDialog").dialog(optRegistration);
+            if (registerNewUser)
+            {
+                $("#openRegisterDialog").click(function () {
+                    $("#registrationDialog").dialog("open");
+                });
+            }
+        });
+
+        var loginMessage = "@ViewBag.Message";
+
+        if (loginMessage != "") {
+            $("#headerRight").html("<button id='openLoginDialog'>Login</button>");
+            $("#headerRight1").html("");
+
+            $("#loginDialog").dialog(opt);
+            $("#loginDialog").dialog("open");
+        }
+        else
+        {
+            if (loginUsername)
+            {
+                $("#headerRight").html("<button id='logoutButton'>Logout</button>");
+                $("#headerRight1").html("<b>[@ViewBag.Name]&nbsp;as @ViewBag.Persona</b>&nbsp;&nbsp;");
+
+            }
+            else
+            {
+                $("#headerRight").html("<button id='openLoginDialog'>Login</button>");
+                if (registerNewUser )
+                    $("#headerRight1").html("<button id='openRegisterDialog'>Register</button>");
+            }
+        }
+    </script>
 </body>
 </html>

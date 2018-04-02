@@ -10,13 +10,16 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
     using System.Fabric;
     using System.Fabric.Query;
     using System.IO;
+    using System.Linq;
     using System.Net.Http;
     using System.Threading.Tasks;
-    using Iot.Insight.WebService.ViewModels;
-    using Microsoft.AspNetCore.Mvc;
-    using Newtonsoft.Json;
-    using Microsoft.AspNetCore.Hosting;
+    using System.Web;
 
+    using Microsoft.AspNetCore.Mvc;
+    using Microsoft.AspNetCore.Hosting;
+    using Newtonsoft.Json;
+
+    using Iot.Insight.WebService.ViewModels;
 
     using global::Iot.Common;
 
@@ -38,98 +41,139 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
             this.context = context;
         }
 
+
+        [HttpGet]
+        [Route("")]
+        public IActionResult Devices()
+        {
+            // Manage session and Context
+            HttpServiceUriBuilder contextUri = new HttpServiceUriBuilder().SetServiceName(this.context.ServiceName);
+
+            if( HTTPHelper.IsSessionExpired( HttpContext, this ))
+            {
+                return Redirect(contextUri.GetServiceNameSiteHomePath());
+            }
+            else
+            {
+                this.ViewData["TargetSite"] = contextUri.GetServiceNameSite();
+                this.ViewData["PageTitle"] = "Devices";
+                this.ViewData["HeaderTitle"] = "Devices Dashboard";
+                return this.View();
+            }
+        }
+
         [HttpGet]
         [Route("queue/length")]
         public async Task<IActionResult> GetQueueLengthAsync()
         {
-            ServiceUriBuilder uriBuilder = new ServiceUriBuilder(TargetSiteDataServiceName);
-            Uri serviceUri = uriBuilder.Build();
+            // Manage session and Context
+//            HttpServiceUriBuilder contextUri = new HttpServiceUriBuilder().SetServiceName(this.context.ServiceName);
 
-            // service may be partitioned.
-            // this will aggregate the queue lengths from each partition
-            ServicePartitionList partitions = await this.fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
+//            if (HTTPHelper.IsSessionExpired(HttpContext, this))
+//            {
+//                return Redirect(contextUri.GetServiceNameSiteHomePath());
+//            }
+//            else
+//            {
+                ServiceUriBuilder uriBuilder = new ServiceUriBuilder(TargetSiteDataServiceName);
+                Uri serviceUri = uriBuilder.Build();
 
-            long count = 0;
-            foreach (Partition partition in partitions)
-            {
-                Uri getUrl = new HttpServiceUriBuilder()
-                    .SetServiceName(serviceUri)
-                    .SetPartitionKey(((Int64RangePartitionInformation) partition.PartitionInformation).LowKey)
-                    .SetServicePathAndQuery($"/api/devices/queue/length")
-                    .Build();
+                // service may be partitioned.
+                // this will aggregate the queue lengths from each partition
+                ServicePartitionList partitions = await this.fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
 
-                HttpResponseMessage response = await this.httpClient.GetAsync(getUrl, this.appLifetime.ApplicationStopping);
-
-                if (response.StatusCode != System.Net.HttpStatusCode.OK)
+                long count = 0;
+                foreach (Partition partition in partitions)
                 {
-                    return this.StatusCode((int) response.StatusCode);
+                    Uri getUrl = new HttpServiceUriBuilder()
+                        .SetServiceName(serviceUri)
+                        .SetPartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey)
+                        .SetServicePathAndQuery($"/api/devices/queue/length")
+                        .Build();
+
+                    HttpResponseMessage response = await this.httpClient.GetAsync(getUrl, this.appLifetime.ApplicationStopping);
+
+                    if (response.StatusCode != System.Net.HttpStatusCode.OK)
+                    {
+                        return this.StatusCode((int)response.StatusCode);
+                    }
+
+                    string result = await response.Content.ReadAsStringAsync();
+
+                    count += Int64.Parse(result);
                 }
 
-                string result = await response.Content.ReadAsStringAsync();
-
-                count += Int64.Parse(result);
-            }
-
-            return this.Ok(count);
+                return this.Ok(count);
+  //          }
         }
 
         [HttpGet]
-        [Route("")]
         [Route("device/{deviceId}/timestamp/{timestampVal}")]
+        [Route("deviceList")]
         public async Task<IActionResult> GetDevicesAsync( string deviceId = null, string timestampVal = null)
         {
-            ServiceUriBuilder uriBuilder = new ServiceUriBuilder(TargetSiteDataServiceName);
-            Uri serviceUri = uriBuilder.Build();
+            // Manage session and Context
+//            HttpServiceUriBuilder contextUri = new HttpServiceUriBuilder().SetServiceName(this.context.ServiceName);
 
-            // service may be partitioned.
-            // this will aggregate device IDs from all partitions
-            ServicePartitionList partitions = await this.fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
+//            if (HTTPHelper.IsSessionExpired(HttpContext, this))
+//            {
+//                return Redirect(contextUri.GetServiceNameSiteHomePath());
+//            }
+//            else
+//            {
+                ServiceUriBuilder uriBuilder = new ServiceUriBuilder(TargetSiteDataServiceName);
+                Uri serviceUri = uriBuilder.Build();
 
-            List<DeviceViewModel> deviceViewModels = new List<DeviceViewModel>();
-            foreach (Partition partition in partitions)
-            {
-                Uri getUrl = new HttpServiceUriBuilder()
-                    .SetServiceName(serviceUri)
-                    .SetPartitionKey(((Int64RangePartitionInformation) partition.PartitionInformation).LowKey)
-                    .SetServicePathAndQuery($"/api/devices")
-                    .Build();
+                // service may be partitioned.
+                // this will aggregate device IDs from all partitions
+                ServicePartitionList partitions = await this.fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
 
-                HttpResponseMessage response = await this.httpClient.GetAsync(getUrl, this.appLifetime.ApplicationStopping);
-
-                if (response.StatusCode != System.Net.HttpStatusCode.OK)
+                List<DeviceViewModel> deviceViewModels = new List<DeviceViewModel>();
+                foreach (Partition partition in partitions)
                 {
-                    return this.StatusCode((int) response.StatusCode);
-                }
+                    Uri getUrl = new HttpServiceUriBuilder()
+                        .SetServiceName(serviceUri)
+                        .SetPartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey)
+                        .SetServicePathAndQuery($"/api/devices")
+                        .Build();
 
-                JsonSerializer serializer = new JsonSerializer();
-                using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
-                {
-                    using (JsonTextReader jsonReader = new JsonTextReader(streamReader))
+                    HttpResponseMessage response = await this.httpClient.GetAsync(getUrl, this.appLifetime.ApplicationStopping);
+
+                    if (response.StatusCode != System.Net.HttpStatusCode.OK)
                     {
-                        List<DeviceViewModel> result = serializer.Deserialize<List<DeviceViewModel>>(jsonReader);
+                        return this.StatusCode((int)response.StatusCode);
+                    }
 
-                        if (result != null)
+                    JsonSerializer serializer = new JsonSerializer();
+                    using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
+                    {
+                        using (JsonTextReader jsonReader = new JsonTextReader(streamReader))
                         {
-                            if( deviceId == null )
-                                deviceViewModels.AddRange(result);
-                            else
-                            {
-                                DateTimeOffset timestamp = new DateTimeOffset();
-                                timestamp = DateTime.Parse(timestampVal);
+                            List<DeviceViewModel> result = serializer.Deserialize<List<DeviceViewModel>>(jsonReader);
 
-                                foreach ( DeviceViewModel device in result )
+                            if (result != null)
+                            {
+                                if (deviceId == null)
+                                    deviceViewModels.AddRange(result);
+                                else
                                 {
-                                    if (device.Id.Equals(deviceId, StringComparison.InvariantCultureIgnoreCase) &&
-                                        device.Timestamp == timestamp)
-                                        deviceViewModels.Add(device);
+                                    DateTimeOffset timestamp = new DateTimeOffset();
+                                    timestamp = DateTime.Parse(timestampVal);
+
+                                    foreach (DeviceViewModel device in result)
+                                    {
+                                        if (device.Id.Equals(deviceId, StringComparison.InvariantCultureIgnoreCase) &&
+                                            device.Timestamp == timestamp)
+                                            deviceViewModels.Add(device);
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            return this.Ok(deviceViewModels);
+                return this.Ok(deviceViewModels);
+//            }
         }
 
 

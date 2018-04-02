@@ -10,9 +10,10 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
     using System.Configuration;
     using System.Collections.Specialized;
     using System.Threading.Tasks;
-
     using System.Fabric;
     using System.Linq;
+    using System.Web;
+
     using Microsoft.AspNetCore.Mvc;
 
     using Microsoft.IdentityModel.Clients.ActiveDirectory;
@@ -20,8 +21,10 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
     using Microsoft.PowerBI.Api.V2.Models;
     using Microsoft.Rest;
 
+    using global::Iot.Common;
     using Iot.Insight.WebService.ViewModels;
 
+  
     public class HomeController : Controller
     {
         private readonly StatelessServiceContext context;
@@ -42,31 +45,107 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
             this.context = context;
         }
 
+        [HttpGet]
+        [Route("")]
         public IActionResult Index()
         {
-            this.ViewData["TargetSite"] = this.context.ServiceName.AbsolutePath.Split('/').Last();
+            // Manage session
+            HttpServiceUriBuilder contextUri = new HttpServiceUriBuilder().SetServiceName(this.context.ServiceName);
+
+            // if there is an ongoing session this method will make sure to pass along the session information
+            // to the view 
+            HTTPHelper.IsSessionExpired(HttpContext, this);
+
+            this.ViewData["TargetSite"] = contextUri.GetServiceNameSite();
             this.ViewData["PageTitle"] = "Home";
-            this.ViewData["HeaderTitle"] = "Devices Dashboard";
-            return this.View();
+            this.ViewData["HeaderTitle"] = "Vibration Device Insights";
+
+            ViewBag.Message = "";
+            return View("Index");
         }
 
         [HttpGet]
         [Route("run/report")]
         public async Task<IActionResult> EmbedReport()
         {
-            this.ViewData["TargetSite"] = this.context.ServiceName.AbsolutePath.Split('/').Last();
-            this.ViewData["PageTitle"] = "Report";
-            this.ViewData["HeaderTitle"] = "Last Posted Events";
-       
-            EmbedConfig task = await EmbedReportConfigData();
-            this.ViewData["EmbedToken"] = task.EmbedToken.Token;
-            this.ViewData["EmbedURL"] = task.EmbedUrl;
-            this.ViewData["EmbedId"] = task.Id;
-            return this.View();
+            // Manage session and Context
+            HttpServiceUriBuilder contextUri = new HttpServiceUriBuilder().SetServiceName(this.context.ServiceName);
+
+            if (HTTPHelper.IsSessionExpired(HttpContext,this))
+            {
+                return Redirect(contextUri.GetServiceNameSiteHomePath());
+            }
+            else
+            {
+                this.ViewData["TargetSite"] = contextUri.GetServiceNameSite();
+                this.ViewData["PageTitle"] = "Report";
+                this.ViewData["HeaderTitle"] = "Last Posted Events";
+
+                EmbedConfig task = await EmbedReportConfigData();
+                this.ViewData["EmbedToken"] = task.EmbedToken.Token;
+                this.ViewData["EmbedURL"] = task.EmbedUrl;
+                this.ViewData["EmbedId"] = task.Id;
+
+                return this.View();
+            }
+        }
+
+        [HttpPost]
+        [Route("[Controller]/login")]
+        [ValidateAntiForgeryToken]
+        public ActionResult Login(UserProfile objUser)
+        {
+            // Manage session and Context
+            HttpServiceUriBuilder contextUri = new HttpServiceUriBuilder().SetServiceName(this.context.ServiceName);
+
+            if (ModelState.IsValid)
+            {
+                ViewBag.Message = "";
+                if (objUser.Password != null && objUser.Password.Length > 0)
+                {
+                    try
+                    {
+                        string redirectTo = HTTPHelper.StartSession(HttpContext, this, objUser, "User", "/api/devices", contextUri.GetServiceNameSiteHomePath());
+
+                        //TODO : make the redirection configurable as part of insight application
+                        return Redirect(redirectTo);
+                    }
+                    catch ( System.Exception ex )
+                    {
+                        ViewBag.Message = "Internal Error During User Login- Report to the System Administrator";
+                        Console.WriteLine("On Login Session exception msg=[" + ex.Message + "]");
+                    }
+                }
+                else
+                {
+                    if (!HTTPHelper.IsSessionExpired(HttpContext, this))
+                        HTTPHelper.EndSession(HttpContext, this);
+
+                    ViewBag.Message = "Invalid username and/or password";
+                }
+            }
+            return View( "Index", objUser );
+        }
+
+        [HttpPost]
+        [Route("[Controller]/logout")]
+        [ValidateAntiForgeryToken]
+        public ActionResult Logout(UserProfile objUser)
+        {
+            // Manage session
+            if (ModelState.IsValid)
+            {
+                if (!HTTPHelper.IsSessionExpired(HttpContext, this))
+                    HTTPHelper.EndSession(HttpContext, this);
+            }
+            return View("Index");
         }
 
         public IActionResult About()
         {
+            // Manage session
+            string sessionId = HTTPHelper.GetCookieValueFor(HttpContext, SessionManager.GetSessionCookieName());
+
             this.ViewData["Message"] = "Your application description page.";
 
             return this.View();
@@ -74,6 +153,9 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
         public IActionResult Contact()
         {
+            // Manage session
+            string sessionId = HTTPHelper.GetCookieValueFor(HttpContext, SessionManager.GetSessionCookieName());
+
             this.ViewData["Message"] = "Your contact page.";
 
             return this.View();
@@ -199,8 +281,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
             }
 
             // Client Id must be a Guid object.
-            Guid result;
-            if (!Guid.TryParse(ClientId, out result))
+            if (!Guid.TryParse(ClientId, out Guid result))
             {
                 return "ClientId must be a Guid object. please register your application as Native app in https://dev.powerbi.com/apps and fill client Id in web.config.";
             }

@@ -23,7 +23,7 @@ namespace Iot.Common
     public class IoTHubClient
     {
 
-        public static async Task SendMessageToIoTHubAsync(string connectionString, IEnumerable<Device> devices, NameValueCollection keyFields, List<object> events )
+        public static async Task SendMessageToIoTHubAsync(string connectionString, IEnumerable<Device> devices, NameValueCollection keyFields, List<object> events, string messageContent = null )
         {
             string deviceId = keyFields.Get(Names.EVENT_KEY_DEVICE_ID); 
             string iotHubUri = connectionString.Split(';')
@@ -44,15 +44,22 @@ namespace Iot.Common
             JsonSerializer serializer = new JsonSerializer();
             using (MemoryStream stream = new MemoryStream())
             {
-                using (StreamWriter streamWriter = new StreamWriter(stream))
+                if( messageContent == null || messageContent.Length == 0)
                 {
-                    using (JsonTextWriter jsonWriter = new JsonTextWriter(streamWriter))
+                    using (StreamWriter streamWriter = new StreamWriter(stream))
                     {
-                        serializer.Serialize(jsonWriter, events);
+                        using (JsonTextWriter jsonWriter = new JsonTextWriter(streamWriter))
+                        {
+                            serializer.Serialize(jsonWriter, events);
+                        }
                     }
-                }
 
-                message = new Microsoft.Azure.Devices.Client.Message(stream.GetBuffer());
+                    message = new Microsoft.Azure.Devices.Client.Message(stream.GetBuffer());
+                }
+                else
+                {
+                    message = new Microsoft.Azure.Devices.Client.Message(Encoding.ASCII.GetBytes(messageContent));
+                }
 
                 string[] keys = keyFields.AllKeys;
 
@@ -63,7 +70,10 @@ namespace Iot.Common
 
                 await deviceClient.SendEventAsync(message);
 
-                Console.WriteLine($"Sent message: {Encoding.UTF8.GetString(stream.GetBuffer())}");
+                if( messageContent != null && messageContent.Length > 0 )
+                    Console.WriteLine($"Sent message: {messageContent}");
+                else
+                    Console.WriteLine($"Sent message: {Encoding.UTF8.GetString(stream.GetBuffer())}");
             }
         }
     }

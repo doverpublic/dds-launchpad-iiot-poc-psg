@@ -5,116 +5,14 @@
 <div id="main">
     <div id="result"></div>
     <div class="tile">
-        <h3>Count of Device Events In Process:</h3>
-        <div id="queueLength">Loading..</div>
+        <h3>Vibration Device Description</h3>
     </div>
     <div class="tile">
-        <h3>Devices</h3>
-        <ul id="deviceList"></ul>
+        <h4>Dover Vibration Device</h4>
     </div>
 </div>
 
 @section scripts
 {
-    <script>
 
-        $(function() {
-            var path = window.location.pathname.replace(/\/+$/, "");
-            var $result = $('#result');
-            var refreshRate = 3000;
-
-            function last(path) {
-                var s = path.replace(/\/+$/, "").split('/');
-                return s[s.length - 1];
-            }
-
-            refreshDeviceList = function(apiUrl, $deviceList) {
-                $.ajax({
-                        url: path + apiUrl,
-                        method: 'GET',
-                        contentType: 'application/json',
-                        dataType: 'json'
-                    })
-                    .done(function (devices) {
-
-                        //<a id="myLink" title="Click to do something" href = "#" onclick= "MyFunction();return false;" > link text</a >
-                        var reportPath = path + '/run/report'
-
-                        $deviceList.html('');
-
-                        $deviceList.append(
-                            '<h4>Last Posted Events By Device</h4>' + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a id="runReport" href="#" onclick="popitup(' + "'" + reportPath + "','Report View');return false;" + '">View Report</a>' +
-                            '<hr>'
-                        );
-
-                        for (var i = 0; i < devices.length; ++i) {
-                            var device = devices[i];
-                            $deviceList.append(
-                                '<li>' +
-                                '<div class="deviceInfo">' +
-                                '<h5>' + device.id + '</h5>' + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' +
-                                '<ul class="deviceData">' +
-                                '<li><label>Timestamp          :</label>&nbsp;' + device.timestamp + '</li>' +
-                                '<li><label>Measurement Type   :</label>&nbsp;' + device.measurementType + '</li>' +
-                                '<li><label>Temperature        :</label>&nbsp;' + device.temperature + '</li>' +
-                                '<li><label>Battery Level      :</label>&nbsp;' + device.batteryLevel + '</li>' +
-                                '<li><label>Data Points Count  :</label>&nbsp;' + device.dataPointsCount + '</li>' +
-                                '<li><label>Frequency          :</label>&nbsp;' + device.frequency + '</li>' +
-                                '<li><label>Magnitude          :</label>&nbsp;' + device.magnitude + '</li>' +
-                                '</ul > ' +
-                                '</div>' +
-                                '</li>');
-                        }
-                    })
-                    .error(function(error) {
-                        $result.removeClass();
-                        $result.addClass('errorResult');
-                        $result.html('Failed to refresh info from [' + apiUrl + '] - Message[' + error.responseText + ']');
-                    })
-                    .always(function() {
-                        setTimeout(function() {
-                            $result.html('');
-                            $result.removeClass();
-                            refreshDeviceList(apiUrl, $deviceList);
-                        }, refreshRate);
-                    });
-            }
-
-            refreshQueueLength = function(apiUrl, $queueElement) {
-                $.ajax({
-                        url: path + apiUrl,
-                        method: 'GET',
-                        contentType: 'application/json',
-                        dataType: 'json'
-                    })
-                    .done(function(result) {
-                        $queueElement.html(result);
-                    })
-                    .error(function(error) {
-                        $result.removeClass();
-                        $result.addClass('errorResult');
-                        $result.html('Failed to refresh info from [' + apiUrl + '] - [ Message[' + error.responseText + ']');
-                    })
-                    .always(function() {
-                        setTimeout(function() {
-                            $result.html('');
-                            $result.removeClass();
-                            refreshQueueLength(apiUrl, $queueElement);
-                        }, refreshRate);
-                    });
-            }
-
-            refreshDeviceList('/api/devices', $('#deviceList'));
-            refreshQueueLength('/api/devices/queue/length', $('#queueLength'));
-
-        });
-
-        function popitup(url, windowName)
-        {
-            newwindow = window.open(url, windowName, 'height=700,width=1000,location=no,menubar=no,status=no,toolbar=no,titlebar=no,left=50,top=50');
-            if (window.focus) { newwindow.focus() }
-            return false;
-        }
-
-    </script>
 }

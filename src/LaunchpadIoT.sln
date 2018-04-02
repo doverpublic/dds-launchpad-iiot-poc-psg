@@ -19,8 +19,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Launchpad Insight Applicati
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Iot.Common", "Iot.Common\Iot.Common.csproj", "{35072B44-BC38-4D61-B96C-AF2BCFFAFB41}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Iot.Mocks", "Iot.Mocks\Iot.Mocks.csproj", "{E05F8F27-A728-4C38-BAF9-D78228099FCE}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Launchpad.Iot.DeviceEmulator", "Launchpad.Iot.DeviceEmulator\Launchpad.Iot.DeviceEmulator.csproj", "{5CA93865-4B0A-4DBC-9378-BDAD1C396886}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Launchpad.Iot.Admin.WebService", "Launchpad.Iot.Admin.WebService\Launchpad.Iot.Admin.WebService.csproj", "{5E0F0994-966D-4ACE-BE41-7FDE742683F6}"
@@ -102,13 +100,6 @@ Global
 		{35072B44-BC38-4D61-B96C-AF2BCFFAFB41}.Release|Any CPU.ActiveCfg = Release|x64
 		{35072B44-BC38-4D61-B96C-AF2BCFFAFB41}.Release|x64.ActiveCfg = Release|x64
 		{35072B44-BC38-4D61-B96C-AF2BCFFAFB41}.Release|x64.Build.0 = Release|x64
-		{E05F8F27-A728-4C38-BAF9-D78228099FCE}.Debug|Any CPU.ActiveCfg = Debug|x64
-		{E05F8F27-A728-4C38-BAF9-D78228099FCE}.Debug|Any CPU.Build.0 = Debug|x64
-		{E05F8F27-A728-4C38-BAF9-D78228099FCE}.Debug|x64.ActiveCfg = Debug|x64
-		{E05F8F27-A728-4C38-BAF9-D78228099FCE}.Debug|x64.Build.0 = Debug|x64
-		{E05F8F27-A728-4C38-BAF9-D78228099FCE}.Release|Any CPU.ActiveCfg = Release|x64
-		{E05F8F27-A728-4C38-BAF9-D78228099FCE}.Release|x64.ActiveCfg = Release|x64
-		{E05F8F27-A728-4C38-BAF9-D78228099FCE}.Release|x64.Build.0 = Release|x64
 		{5CA93865-4B0A-4DBC-9378-BDAD1C396886}.Debug|Any CPU.ActiveCfg = Debug|x64
 		{5CA93865-4B0A-4DBC-9378-BDAD1C396886}.Debug|Any CPU.Build.0 = Debug|x64
 		{5CA93865-4B0A-4DBC-9378-BDAD1C396886}.Debug|x64.ActiveCfg = Debug|x64
@@ -163,7 +154,7 @@ Global
 		{2682862D-F728-4CA8-A8BA-3A264F1AFA99} = {5425900B-2D2D-4F9A-B4D4-4E1E7C03BC1D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		EnterpriseLibraryConfigurationToolBinariesPathV6 = packages\EnterpriseLibrary.TransientFaultHandling.6.0.1304.0\lib\portable-net45+win+wp8
 		SolutionGuid = {B6BAC812-F280-40FB-A687-5E7D2B6EDADC}
+		EnterpriseLibraryConfigurationToolBinariesPathV6 = packages\EnterpriseLibrary.TransientFaultHandling.6.0.1304.0\lib\portable-net45+win+wp8
 	EndGlobalSection
 EndGlobal
