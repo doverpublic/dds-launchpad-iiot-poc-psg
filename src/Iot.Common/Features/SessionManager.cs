@@ -17,6 +17,46 @@ namespace Iot.Common
         private static bool         sessionThreadFlag = false;
         private static Thread       sessionThread = null;
 
+        private static ParameterContainer singletonParamater = new ParameterContainer();
+
+        public static string GetSingletonParameter()
+        {
+            string strRet = null;
+
+            lock(singletonParamater)
+            {
+                strRet = singletonParamater.GetParameter();
+            }
+
+            return strRet;
+        }
+
+        public static void SetSingletonParameter( string value )
+        {
+            bool isParameterPresent = true;
+            int sleepInterval = 1;
+
+            while(isParameterPresent )
+            {
+                lock (singletonParamater)
+                {
+                    isParameterPresent = singletonParamater.IsParameterPresent();
+
+                    if( !isParameterPresent || sleepInterval > 4 )
+                    {
+                        singletonParamater.SetPameter(value);
+                        isParameterPresent = false;
+                    }
+                }
+
+                if( isParameterPresent )
+                {
+                    Thread.Sleep(sleepInterval * 1000 );
+                    sleepInterval *= 2;
+                }
+            }
+        }
+
         public static string GetSessionCookieName( string givenCookieName = null)
         {
             if (givenCookieName == null)
@@ -27,12 +67,7 @@ namespace Iot.Common
 
         public static string CreateNewSession()
         {
-            string strRet = "";
-            string[] parts = System.Guid.NewGuid().ToString().Split('-');
-
-            foreach (string part in parts)
-                strRet += part;
-
+            string strRet = FnvHash.GetUniqueId(); 
 
             if (!SessionManager.sessionsBag.TryAdd(strRet, new SessionContainer(strRet)))
                 Console.WriteLine("Could not add SessionContainer to sessions bag - sessionId=[" + strRet + "]");
@@ -166,6 +201,32 @@ namespace Iot.Common
         }
 
         // PRIVATE CLASSES
+        private class ParameterContainer
+        {
+            private  string parameter = null;
+
+            public string GetParameter()
+            {
+                string strRet = parameter;
+
+                if (strRet != null)
+                    parameter = null;
+
+                return strRet;
+            }
+
+            public bool IsParameterPresent()
+            {
+                return parameter != null;
+            }
+
+            public void SetPameter( string value)
+            {
+                parameter = value;
+            }
+        }
+
+
         private class SessionContainer
         {
             private Hashtable Container = new Hashtable();

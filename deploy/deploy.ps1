@@ -72,7 +72,7 @@ Param
     $UsePublishProfileClusterConnection = $true,
 
     [Switch]
-    $SkipBuild = $false
+    $SkipBuild = $true
 )
 
 echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
@@ -105,7 +105,7 @@ Import-Module "$ModuleFolderPath\ServiceFabricSDK.ps1"
 
 
 # This is included with the solution
-Import-Module "$LocalDir\functions.psm1"
+Import-Module "$LocalDir\Scripts\functions.psm1"
 
 # Get the parameters file first so that one can reuse the profile name profile filename
 $ParametersfileName = $PublishProfileName + ".Parameters.xml"
@@ -113,10 +113,10 @@ $ParametersfileName = $PublishProfileName + ".Parameters.xml"
 # Get a publish profile from the profile XML files in the Deploy directory
 $PublishProfileName = $PublishProfileName + ".Profile.xml"
 
-$PublishProfileFile = [System.IO.Path]::Combine($LocalDir, "Deploy\$PublishProfileName")
+$PublishProfileFile = [System.IO.Path]::Combine($LocalDir, "Profiles\$PublishProfileName")
 $PublishProfile = Read-PublishProfile $PublishProfileFile
 
-$ParametersfileName = [System.IO.Path]::Combine($LocalDir, "Deploy\$ParametersfileName")
+$ParametersfileName = [System.IO.Path]::Combine($LocalDir, "Profiles\$ParametersfileName")
 
 
 # Using the publish profile, connect to the SF cluster
@@ -161,14 +161,15 @@ echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
 echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
 echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
 
-echo ">>>>>>> About To Start Builds <<<<<<<<<"
+echo ">>>>>>> About To Start Package Builds <<<<<<<<<"
 
 
 # Build and package the applications
 if( !$SkipBuild )
 {
-    & "$LocalDir\build.cmd"
+    & "$LocalDir\buildPackages.cmd"
 }
+
 
 echo ">>>>>>> Finished Builds <<<<<<<<<"
 echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
@@ -181,7 +182,7 @@ echo ">>>>>>> About To Start Publishing for $EventsProcessorApplicationDir <<<<<
 
 Publish-NewServiceFabricApplication `
     -ApplicationPackagePath "$EventsProcessorApplicationDir\pkg\$Configuration" `
-    -ApplicationParameterFilePath "$LocalDir\Deploy\DummyApplicationParameters.xml" `
+    -ApplicationParameterFilePath "$LocalDir\Profiles\DummyApplicationParameters.xml" `
     -Action "Register" `
     -ApplicationParameter @{} `
     -OverwriteBehavior $OverwriteBehavior `
@@ -198,7 +199,7 @@ echo ">>>>>>> About To Start Publishing for $InsightApplicationDir <<<<<<<<<"
 
 Publish-NewServiceFabricApplication `
     -ApplicationPackagePath "$InsightApplicationDir\pkg\$Configuration" `
-    -ApplicationParameterFilePath "$LocalDir\Deploy\DummyApplicationParameters.xml" `
+    -ApplicationParameterFilePath "$LocalDir\Profiles\DummyApplicationParameters.xml" `
     -Action "Register" `
     -ApplicationParameter @{} `
     -OverwriteBehavior $OverwriteBehavior `

@@ -27,17 +27,16 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Launchpad.Iot.Insight.DataS
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Launchpad.Iot.Insight.WebService", "Launchpad.Iot.Insight.WebService\Launchpad.Iot.Insight.WebService.csproj", "{AFE07FB7-AF21-491F-A8CC-381C5733D437}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Build", "Build", "{5425900B-2D2D-4F9A-B4D4-4E1E7C03BC1D}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deploy", "Deploy", "{5425900B-2D2D-4F9A-B4D4-4E1E7C03BC1D}"
 	ProjectSection(SolutionItems) = preProject
 		..\build\build.cmd = ..\build\build.cmd
 		..\build\clean.cmd = ..\build\clean.cmd
 		..\build\deploy.ps1 = ..\build\deploy.ps1
-		..\build\functions.psm1 = ..\build\functions.psm1
 		..\build\nuget.exe = ..\build\nuget.exe
 		..\build\obliterate.ps1 = ..\build\obliterate.ps1
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deploy", "Deploy", "{2682862D-F728-4CA8-A8BA-3A264F1AFA99}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Profiles", "Profiles", "{2682862D-F728-4CA8-A8BA-3A264F1AFA99}"
 	ProjectSection(SolutionItems) = preProject
 		..\build\Deploy\Cloud.POC01.Parameters.xml = ..\build\Deploy\Cloud.POC01.Parameters.xml
 		..\build\Deploy\Cloud.POC01.Profile.xml = ..\build\Deploy\Cloud.POC01.Profile.xml
@@ -50,6 +49,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deploy", "Deploy", "{268286
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Launchpad.App.Common", "Launchpad.App.Common\Launchpad.App.Common.csproj", "{D39F6D71-D17A-4435-BE65-D57D2B86ABF0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Scripts", "Scripts", "{7BEBA822-FF97-4413-B817-39A03D55E9E1}"
+	ProjectSection(SolutionItems) = preProject
+		..\build\functions.psm1 = ..\build\functions.psm1
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -152,9 +156,10 @@ Global
 		{8C5A3D25-2356-4D3D-9D63-4AF71E3D0B2C} = {BE5420F3-CD91-437C-9BCD-23612FB56C7B}
 		{AFE07FB7-AF21-491F-A8CC-381C5733D437} = {BE5420F3-CD91-437C-9BCD-23612FB56C7B}
 		{2682862D-F728-4CA8-A8BA-3A264F1AFA99} = {5425900B-2D2D-4F9A-B4D4-4E1E7C03BC1D}
+		{7BEBA822-FF97-4413-B817-39A03D55E9E1} = {5425900B-2D2D-4F9A-B4D4-4E1E7C03BC1D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {B6BAC812-F280-40FB-A687-5E7D2B6EDADC}
 		EnterpriseLibraryConfigurationToolBinariesPathV6 = packages\EnterpriseLibrary.TransientFaultHandling.6.0.1304.0\lib\portable-net45+win+wp8
+		SolutionGuid = {B6BAC812-F280-40FB-A687-5E7D2B6EDADC}
 	EndGlobalSection
 EndGlobal

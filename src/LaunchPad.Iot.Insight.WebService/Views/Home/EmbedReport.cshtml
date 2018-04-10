@@ -6,6 +6,16 @@
 @section scripts
 {
     <script>
+        const filter = {
+            $schema: "http://powerbi.com/product/schema#basic",
+            target: {
+                table: 'device',
+                column: 'deviceId'
+            },
+            operator: 'In',
+            values: ['@ViewData["ReportParm"]']
+        };
+
         var config = {
                 type: 'report',
                 tokenType: 1,
@@ -13,6 +23,7 @@
                 embedUrl: '@ViewData["EmbedURL"]',
                 id: '@ViewData["EmbedId"]',
                 permissions: 7,
+                filters: [filter],
                 settings: {
                     filterPaneEnabled: true,
                     navContentPaneEnabled: true

@@ -133,6 +133,13 @@ namespace Iot.Common
             return this;
         }
 
+        public HttpServiceUriBuilder SetServiceName( string applicationNamePrefix, string targetSite, string serviceName )
+        {
+            Uri targetSiteServiceName = new Uri($"{applicationNamePrefix}/{targetSite}/{serviceName}"); ;
+
+            return SetServiceName(targetSiteServiceName);
+        }
+
         /// <summary>
         /// Fully-qualified service name URI: fabric:/name/of/service
         /// </summary>

@@ -14,6 +14,8 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
     using Microsoft.ServiceFabric.Data.Collections;
     using Microsoft.AspNetCore.Hosting;
 
+    using global::Iot.Common;
+
     [Route("api/[controller]")]
     public class DevicesController : Controller
     {
@@ -32,29 +34,21 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         [Route("")]
         public async Task<IActionResult> GetAsync()
         {
-            IReliableDictionary<string, DeviceEvent> store =
-                await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEvent>>(DataService.EventDictionaryName);
+            IReliableDictionary<string, DeviceEventSeries> storeInProgressMessage = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEventSeries>>(DataService.EventDictionaryName);
 
             List<object> devices = new List<object>();
             using (ITransaction tx = this.stateManager.CreateTransaction())
             {
-                IAsyncEnumerable<KeyValuePair<string, DeviceEvent>> enumerable = await store.CreateEnumerableAsync(tx);
-                IAsyncEnumerator<KeyValuePair<string, DeviceEvent>> enumerator = enumerable.GetAsyncEnumerator();
+                IAsyncEnumerable<KeyValuePair<string, DeviceEventSeries>> enumerable = await storeInProgressMessage.CreateEnumerableAsync(tx);
+                IAsyncEnumerator<KeyValuePair<string, DeviceEventSeries>> enumerator = enumerable.GetAsyncEnumerator();
 
                 while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
                 {
                     devices.Add(
                         new
                         {
-                            Id = enumerator.Current.Key,
-                            Timestamp = enumerator.Current.Value.Timestamp,
-                            MeasurementType = enumerator.Current.Value.MeasurementType,
-                            SensorIndex = enumerator.Current.Value.SensorIndex,
-                            Temperature = enumerator.Current.Value.Temperature,
-                            BatteryLevel = enumerator.Current.Value.BatteryLevel,
-                            DataPointsCount = enumerator.Current.Value.DataPointsCount,
-                            Frequency = enumerator.Current.Value.Frequency,
-                            Magnitude = enumerator.Current.Value.Magnitude
+                            DeviceId = enumerator.Current.Key,
+                            enumerator.Current.Value.Events
                         });
                 }
             }
@@ -66,12 +60,21 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         [Route("queue/length")]
         public async Task<IActionResult> GetQueueLengthAsync()
         {
-            IReliableQueue<DeviceEventSeries> queue =
-                await this.stateManager.GetOrAddAsync<IReliableQueue<DeviceEventSeries>>(DataService.EventQueueName);
+            long count = 0;
+            IReliableDictionary<string, EdgeDevice> storeDeviceCounters = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, EdgeDevice>>(DataService.EventDictionaryName);
 
             using (ITransaction tx = this.stateManager.CreateTransaction())
             {
-                long count = await queue.GetCountAsync(tx);
+                IAsyncEnumerable<KeyValuePair<string, EdgeDevice>> enumerable = await storeDeviceCounters.CreateEnumerableAsync(tx);
+                IAsyncEnumerator<KeyValuePair<string, EdgeDevice>> enumerator = enumerable.GetAsyncEnumerator();
+
+                while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
+                {
+                    string deviceId = enumerator.Current.Key;
+                    EdgeDevice device = enumerator.Current.Value;
+
+                    count += device.EventsCount;
+                }
 
                 return this.Ok(count);
             }

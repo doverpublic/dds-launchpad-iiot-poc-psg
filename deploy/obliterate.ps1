@@ -41,7 +41,7 @@ $LocalDir = (Split-Path $MyInvocation.MyCommand.Path)
 $SolutionDir = [System.IO.Path]::Combine((get-item $LocalDir).Parent.FullName, "src")
 
 # This is included with the solution
-Import-Module "$LocalDir\functions.psm1"
+Import-Module "$LocalDir\Scripts\functions.psm1"
 
 # Get a publish profile from the profile XML files in the Deploy directory
 if (!$PublishProfileName.EndsWith(".xml"))

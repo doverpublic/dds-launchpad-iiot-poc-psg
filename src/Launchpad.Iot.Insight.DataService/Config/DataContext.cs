@@ -6,7 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 
 
-using Launchpad.Iot.Insight.DataService.Models;
+using global::Iot.Common;
 
 namespace Launchpad.Iot.Insight.DataService
 {

@@ -12,6 +12,17 @@ namespace Iot.Common
         private const ulong FnvPrime = 1099511628211;
         private const ulong FnvOffsetBasis = 14695981039346656037;
 
+        public static string GetUniqueId()
+        {
+            string strRet = "";
+            string[] parts = System.Guid.NewGuid().ToString().Split('-');
+
+            foreach (string part in parts)
+                strRet += part;
+
+            return strRet;
+        }
+
         public static long Hash(string value)
         {
             return Hash(Encoding.UTF8.GetBytes(value));

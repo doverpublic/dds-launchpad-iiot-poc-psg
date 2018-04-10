@@ -330,20 +330,23 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="HTTPHelper.cs" />
-    <Compile Include="ManageAppSettings.cs" />
-    <Compile Include="MessageSchema.cs" />
-    <Compile Include="EventsContainer.cs" />
-    <Compile Include="IoTHubClient.cs" />
-    <Compile Include="FnvHash.cs" />
-    <Compile Include="HttpServiceClientHandler.cs" />
-    <Compile Include="HttpServiceUriBuilder.cs" />
-    <Compile Include="HttpServiceUriTarget.cs" />
-    <Compile Include="Names.cs" />
+    <Compile Include="Features\EntityRegistry.cs" />
+    <Compile Include="Helpers\HTTPHelper.cs" />
+    <Compile Include="Features\ManageAppSettings.cs" />
+    <Compile Include="Features\MessageSchema.cs" />
+    <Compile Include="Features\EventsContainer.cs" />
+    <Compile Include="Helpers\IoTHubClient.cs" />
+    <Compile Include="Models\EdgeDevice.cs" />
+    <Compile Include="Models\User.cs" />
+    <Compile Include="Util\FnvHash.cs" />
+    <Compile Include="Helpers\HttpServiceClientHandler.cs" />
+    <Compile Include="Helpers\HttpServiceUriBuilder.cs" />
+    <Compile Include="Helpers\HttpServiceUriTarget.cs" />
+    <Compile Include="Config\Names.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ServiceUriBuilder.cs" />
-    <Compile Include="SessionManager.cs" />
-    <Compile Include="UserProfile.cs" />
+    <Compile Include="Helpers\ServiceUriBuilder.cs" />
+    <Compile Include="Features\SessionManager.cs" />
+    <Compile Include="Models\UserProfile.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
@@ -356,6 +359,7 @@
     <Analyzer Include="..\packages\Microsoft.CodeAnalysis.Analyzers.1.1.0\analyzers\dotnet\cs\Microsoft.CodeAnalysis.Analyzers.dll" />
     <Analyzer Include="..\packages\Microsoft.CodeAnalysis.Analyzers.1.1.0\analyzers\dotnet\cs\Microsoft.CodeAnalysis.CSharp.Analyzers.dll" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

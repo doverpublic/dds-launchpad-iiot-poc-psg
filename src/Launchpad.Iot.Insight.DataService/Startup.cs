@@ -13,6 +13,8 @@ namespace Launchpad.Iot.Insight.DataService
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Logging;
 
+    using System.Web.Mvc;
+
     using System.Data.Entity;
     using global::Iot.Common;
 
@@ -26,6 +28,8 @@ namespace Launchpad.Iot.Insight.DataService
                 .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true)
                 .AddEnvironmentVariables();
             this.Configuration = builder.Build();
+
+            ValueProviderFactories.Factories.Add(new JsonValueProviderFactory());
 
             Console.WriteLine("On Launchpad.Iot.Insight.WebService Startup - Configuration has Sections");
             Console.WriteLine("=============================================================================");

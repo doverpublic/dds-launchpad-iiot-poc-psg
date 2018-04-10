@@ -15,7 +15,7 @@
 </div>
 
 @section scripts
-{
+    {
     <script>
 
         $(function() {
@@ -30,42 +30,52 @@
 
             refreshDeviceList = function(apiUrl, $deviceList) {
                 $.ajax({
-                    url: path + apiUrl,
+                    url: path + apiUrl + '?___ReportsSecretKey___=A58528892D4827FCBD37EE9E1CC88DE82EFA08EC',
                     method: 'GET',
                     contentType: 'application/json',
                     dataType: 'json',
                     success: function (devices) {
 
                         //<a id="myLink" title="Click to do something" href = "#" onclick= "MyFunction();return false;" > link text</a >
-                        var reportPath = '/' + '@ViewData["TargetSite"]' + '/run/report';
+                        var reportPath = '/' + '@ViewData["TargetSite"]' + '/run/report/parm/';
 
                         $deviceList.html('');
 
                         $deviceList.append(
-                            '<h4>Last Posted Events By Device</h4>' + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a id="runReport" href="#" onclick="popitup(' + "'" + reportPath + "','Report View');return false;" + '">View Report</a>' +
+                            '<h4>Last Posted Events By Device</h4>' +
                             '<hr>'
                         );
 
                         for (var i = 0; i < devices.length; ++i) {
                             var device = devices[i];
-                            $deviceList.append(
-                                '<li>' +
-                                '<div class="deviceInfo">' +
-                                '<h5>' + device.id + '</h5>' + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' +
-                                '<ul class="deviceData">' +
-                                '<li><label>Timestamp          :</label>&nbsp;' + device.timestamp + '</li>' +
-                                '<li><label>Measurement Type   :</label>&nbsp;' + device.measurementType + '</li>' +
-                                '<li><label>Sensor Index       :</label>&nbsp;' + device.sensorIndex + '</li>' +
-                                '<li><label>Temperature        :</label>&nbsp;' + device.temperature + '</li>' +
-                                '<li><label>Battery Level      :</label>&nbsp;' + device.batteryLevel + '</li>' +
-                                '<li><label>Data Points Count  :</label>&nbsp;' + device.dataPointsCount + '</li>' +
-                                '<li><label>Frequency          :</label>&nbsp;' + device.frequency + '</li>' +
-                                '<li><label>Magnitude          :</label>&nbsp;' + device.magnitude + '</li>' +
-                                '</ul > ' +
-                                '</div>' +
-                                '</li>');
-                        }
 
+							$deviceList.append(
+                                '<li><p>&nbsp;</p></li><li>' +
+                                '<div class="deviceInfo">' +
+                                '<h3>' + device.deviceId + '</h3>' + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a id="runReport" href="#" onclick="popitup(' + "'" + reportPath + device.deviceId + "','" + reportPath + device.deviceId + "');return false;" + '">View Report</a>' +
+								'&nbsp;&nbsp;<label>Measurement Type:' + device.events[0].measurementType + '</label>' +
+								'&nbsp;&nbsp;<label>Temperature:' + device.events[0].temperature +  '</label>' +
+								'&nbsp;&nbsp;<label>Battery Level:' + device.events[0].batteryLevel +  '</label>' +
+								'&nbsp;&nbsp;<label>Timestamp:' + device.events[0].timestamp +  '</label>' +
+								'&nbsp;&nbsp;<label>Data Points Count:' + device.events[0].dataPointsCount +  '</label>' +
+								'<ul class="deviceData">'
+                            );
+
+                            for (var index = 0; index < device.events.length; index++ ) {
+                                var evt = device.events[index];
+
+                                $deviceList.append(
+									'<div class="deviceInfo"><legend><label>Sensor Index:&nbsp;' + evt.sensorIndex + '</label></legend>' +
+                                    '<li><label>Frequency:</label>&nbsp;' + evt.frequency + '</li>' +
+                                    '<li><label>Magnitude:</label>&nbsp;' + evt.magnitude + '</li>' +
+                                    '</div>'
+                                )
+                            }
+                            $deviceList.append(
+                                '</ul></div>' +
+                                '</li>'
+                            );
+                        }
                     },
                     error: function (error) {
                         $result.removeClass();
@@ -84,7 +94,7 @@
 
             refreshQueueLength = function(apiUrl, $queueElement) {
                 $.ajax({
-                        url: path + apiUrl,
+                        url: path + apiUrl + '?___ReportsSecretKey___=A58528892D4827FCBD37EE9E1CC88DE82EFA08EC',
                         method: 'GET',
                         contentType: 'application/json',
                         dataType: 'json',

@@ -7,6 +7,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
@@ -16,6 +17,8 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
     using Microsoft.ServiceFabric.Data.Collections;
     using System.Fabric;
     using Microsoft.AspNetCore.Hosting;
+
+    using global::Iot.Common;
 
     [Route("api/[controller]")]
     public class EventsController : Controller
@@ -54,55 +57,124 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                 events.Count(),
                 deviceId);
 
-            DeviceEvent max = events.FirstOrDefault();
+            DeviceEvent evt = events.FirstOrDefault();
 
-            if (max == null)
+            if (evt == null)
             {
                 return this.Ok();
             }
 
             DeviceEventSeries eventList = new DeviceEventSeries(deviceId, events);
 
-            IReliableDictionary<string, DeviceEvent> store =
-                await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEvent>>(DataService.EventDictionaryName);
+            IReliableDictionary<string, DeviceEventSeries> storeInProgressMessage =  await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEventSeries>>(DataService.EventDictionaryName);
+            IReliableDictionary<DateTimeOffset, DeviceEventSeries> storeCompletedMessages = await this.stateManager.GetOrAddAsync<IReliableDictionary<DateTimeOffset, DeviceEventSeries>>(DataService.EventDictionaryName);
+            IReliableDictionary<string, EdgeDevice> storeDeviceCounters = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, EdgeDevice>>(DataService.EventDictionaryName);
 
-            IReliableQueue<DeviceEventSeries> queue =
-                await this.stateManager.GetOrAddAsync<IReliableQueue<DeviceEventSeries>>(DataService.EventQueueName);
-
-            // determine the most recent event in the time series
-            foreach (DeviceEvent item in events)
-            {
-                this.appLifetime.ApplicationStopping.ThrowIfCancellationRequested();
-
-                if (item.Timestamp > max.Timestamp)
-                {
-                    max = item;
-                }
-            }
 
             using (ITransaction tx = this.stateManager.CreateTransaction())
             {
-                // Update the current value if the max in the new set is more recent
-                // Or add the max in the current set if a value for this device doesn't exist.
-                await store.AddOrUpdateAsync(
+                DeviceEventSeries completedMessage = null; 
+
+                await storeInProgressMessage.AddOrUpdateAsync(
                     tx,
                     deviceId,
-                    max,
+                    eventList,
                     (key, currentValue) =>
                     {
-                        return max.Timestamp > currentValue.Timestamp
-                            ? max
-                            : currentValue;
+                        return ManageDeviceEventSeriesContent(currentValue, eventList, out completedMessage);
                     });
 
-                // Queue the time series for offload
-                await queue.EnqueueAsync(tx, eventList);
+                if(completedMessage != null)
+                {
+                    EdgeDevice device = null;
+                    ConditionalValue<EdgeDevice> deviceValue = await storeDeviceCounters.TryGetValueAsync(tx, deviceId);
+
+                    if (deviceValue.HasValue)
+                        device = deviceValue.Value;
+                    else
+                        device = new EdgeDevice(deviceId);
+
+
+                    bool tryAgain = true;
+
+                    while( tryAgain )
+                    {
+                        // we don't expected ever to get a collision of a message timestamp for a Device message
+                        // but just in case we add a millisencond until we have a valid spot to save the message
+                        await storeCompletedMessages.AddOrUpdateAsync(
+                                tx,
+                                completedMessage.Timestamp,
+                                completedMessage,
+                                (key, currentValue) =>
+                                {
+                                    if (key == completedMessage.Timestamp)
+                                    {
+                                        completedMessage.Timestamp.AddMilliseconds(1);
+                                        Debug.WriteLine("On EventsController.Post - timestamp collision for Message timestamp=[{0}]", completedMessage.Timestamp.ToString());
+                                        return currentValue;
+                                    }
+                                    else
+                                    {
+                                        tryAgain = false;
+                                        return completedMessage;
+                                    }
+                                });
+                    }
+
+                    await storeInProgressMessage.AddOrUpdateAsync(
+                        tx,
+                        deviceId,
+                        eventList,
+                        (key, currentValue) =>
+                        {
+                            return ManageDeviceEventSeriesContent(currentValue, eventList, out completedMessage);
+                        });
+
+                    device.AddEventCount();
+
+                    await storeDeviceCounters.AddOrUpdateAsync(
+                        tx,
+                        deviceId,
+                        device,
+                        (key, currentValue) =>
+                        {
+                            return device;
+                        });
+                }
 
                 // Commit
                 await tx.CommitAsync();
             }
 
             return this.Ok();
+        }
+
+        // PRIVATE METHODS
+        private DeviceEventSeries ManageDeviceEventSeriesContent( DeviceEventSeries currentSeries, DeviceEventSeries newSeries, out DeviceEventSeries completedMessage )
+        {
+            bool resetCurrent = false;
+
+            foreach( DeviceEvent item in currentSeries.Events)
+            {
+                if (item.SensorIndex == newSeries.Events.First().SensorIndex )
+                {
+                    resetCurrent = true;
+                    break;
+                }
+            }
+
+            if( resetCurrent )
+            {
+                completedMessage = currentSeries;
+                currentSeries = newSeries;
+            }
+            else
+            {
+                completedMessage = null;
+                currentSeries.AddEvent(newSeries.Events.First());
+            }
+
+            return currentSeries;
         }
     }
 }

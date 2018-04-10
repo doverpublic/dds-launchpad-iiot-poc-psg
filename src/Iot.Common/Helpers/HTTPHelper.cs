@@ -81,6 +81,28 @@ namespace Iot.Common
             return strRet;
         }
 
+        public static string GetQueryParameterValueFor(HttpContext context, string parameterName )
+        {
+            string strRet = "";
+
+            if (context != null)
+            {
+                IQueryCollection parameters = context.Request.Query;
+                string parameterValue = parameters[parameterName];
+
+                if (parameterValue != null && parameterValue.Length > 0)
+                {
+                    strRet = System.Web.HttpUtility.UrlDecode(parameterValue);
+                }
+            }
+            else
+            {
+                Console.WriteLine("On GetQueryParameterValueFor - context object is null ");
+            }
+
+            return strRet;
+        }
+
         public static bool IsSessionExpired(HttpContext context, Controller controller, bool registerUser = true)
         {
             bool bRet = true;

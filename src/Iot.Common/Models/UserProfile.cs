@@ -3,11 +3,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.ComponentModel.DataAnnotations;
+using System.Runtime.Serialization;
 
 namespace Iot.Common
 {
+    [DataContract]
     public class UserProfile
     {
+        static UserProfile() { EntityRegistry.RegisterEntity("userprofile", new UserProfile().GetType()); }
+
         public UserProfile()
         {
             RegisterUser = false;
@@ -20,10 +24,15 @@ namespace Iot.Common
             NeedPasswordReset = false;
         }
 
+        [DataMember]
         public string UserName { get; set; }
+        [DataMember]
         public string FirstName { get; set; }
+        [DataMember]
         public string LastName { get; set; }
+        [DataMember]
         public string Password { get; set; }
+        [DataMember]
         public bool   NeedPasswordReset { get; set; }
         public bool   RegisterUser { get; set; }
         public string CurrentPersona { get; set; }
@@ -32,3 +41,4 @@ namespace Iot.Common
         public string ApplicationHomePage { get; set; }
     }
 }
+

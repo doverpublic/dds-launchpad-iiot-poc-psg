@@ -9,11 +9,19 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
     using System.Collections.Generic;
     using System.Configuration;
     using System.Collections.Specialized;
-    using System.Threading.Tasks;
+    using System.Diagnostics;
     using System.Fabric;
+    using System.IO;
+    using System.Text;
+    using System.Threading.Tasks;
+    using System.Net.Http;
     using System.Linq;
+    using System.Net.Http.Headers;
     using System.Web;
 
+    using Newtonsoft.Json;
+
+    using Microsoft.AspNetCore.Hosting;
     using Microsoft.AspNetCore.Mvc;
 
     using Microsoft.IdentityModel.Clients.ActiveDirectory;
@@ -27,6 +35,10 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
   
     public class HomeController : Controller
     {
+        private readonly FabricClient fabricClient;
+        private readonly IApplicationLifetime appLifetime;
+        private readonly HttpClient httpClient;
+
         private readonly StatelessServiceContext context;
         private static NameValueCollection appSettings = ConfigurationManager.AppSettings;
 
@@ -40,9 +52,12 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
         private static readonly string ReportId = appSettings["reportId"];
 
 
-        public HomeController(StatelessServiceContext context)
+        public HomeController(StatelessServiceContext context, FabricClient fabricClient, HttpClient httpClient, IApplicationLifetime appLifetime )
         {
             this.context = context;
+            this.fabricClient = fabricClient;
+            this.httpClient = httpClient;
+            this.appLifetime = appLifetime;
         }
 
         [HttpGet]
@@ -66,7 +81,8 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
         [HttpGet]
         [Route("run/report")]
-        public async Task<IActionResult> EmbedReport()
+        [Route("run/report/parm/{reportParm}")]
+        public async Task<IActionResult> EmbedReport( string reportParm = null)
         {
             // Manage session and Context
             HttpServiceUriBuilder contextUri = new HttpServiceUriBuilder().SetServiceName(this.context.ServiceName);
@@ -85,6 +101,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                 this.ViewData["EmbedToken"] = task.EmbedToken.Token;
                 this.ViewData["EmbedURL"] = task.EmbedUrl;
                 this.ViewData["EmbedId"] = task.Id;
+                this.ViewData["ReportParm"] = reportParm;
 
                 return this.View();
             }
@@ -101,29 +118,79 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
             if (ModelState.IsValid)
             {
                 ViewBag.Message = "";
-                if (objUser.Password != null && objUser.Password.Length > 0)
-                {
-                    try
-                    {
-                        string redirectTo = HTTPHelper.StartSession(HttpContext, this, objUser, "User", "/api/devices", contextUri.GetServiceNameSiteHomePath());
+                bool newUserRegistration = false;
+                bool userAllowedToLogin = false;
 
-                        //TODO : make the redirection configurable as part of insight application
-                        return Redirect(redirectTo);
-                    }
-                    catch ( System.Exception ex )
+                if ((objUser.Password != null && objUser.Password.Length > 0) )
+                {
+                    // First let deal to see if this a user registration
+                    if (objUser.FirstName != null)
                     {
-                        ViewBag.Message = "Internal Error During User Login- Report to the System Administrator";
-                        Console.WriteLine("On Login Session exception msg=[" + ex.Message + "]");
+                        newUserRegistration = true;
+                        Task<bool> result = ExecutePOST(typeof(UserProfile),
+                                                    Launchpad.App.Common.Names.InsightDataServiceName,
+                                                    "api/entities/user/withIdentity/" + objUser.UserName,
+                                                    "user",
+                                                    objUser,
+                                                    this.httpClient,
+                                                    this.fabricClient,
+                                                    this.appLifetime);
+                        if (result.Result)
+                            userAllowedToLogin = true;
+                        else
+                            ViewBag.Message = "Error during new user registration";
+                    }
+
+                    if (!userAllowedToLogin && !newUserRegistration)
+                    {
+                        Task<object> userObject = ExecuteGET(typeof(UserProfile),
+                                                    Launchpad.App.Common.Names.InsightDataServiceName,
+                                                    "api/entities/user/byIdentity/" + objUser.UserName,
+                                                    "user",
+                                                    objUser.UserName,
+                                                    this.httpClient,
+                                                    this.fabricClient,
+                                                    this.appLifetime);
+                        if (userObject != null)
+                        {
+                            UserProfile userProfile = (UserProfile)userObject.Result;
+
+                            if (objUser.Password.Equals(userProfile.Password))
+                                userAllowedToLogin = true;
+                            else
+                                ViewBag.Message = "Invalid Username and/or Password";
+                        }
+                        else
+                        {
+                            ViewBag.Message = "Error checking user credentials";
+                        }
+                    }
+
+                    if (userAllowedToLogin)
+                    {
+                            try
+                        {
+                            string redirectTo = HTTPHelper.StartSession(HttpContext, this, objUser, "User", "/api/devices", contextUri.GetServiceNameSiteHomePath());
+
+                            //TODO : make the redirection configurable as part of insight application
+                            return Redirect(redirectTo);
+                        }
+                        catch (System.Exception ex)
+                        {
+                            ViewBag.Message = "Internal Error During User Login- Report to the System Administrator";
+                            Console.WriteLine("On Login Session exception msg=[" + ex.Message + "]");
+                        }
                     }
                 }
                 else
                 {
-                    if (!HTTPHelper.IsSessionExpired(HttpContext, this))
-                        HTTPHelper.EndSession(HttpContext, this);
-
-                    ViewBag.Message = "Invalid username and/or password";
+                    ViewBag.Message = "Either username and/or password not provided";
                 }
             }
+
+            if (!HTTPHelper.IsSessionExpired(HttpContext, this))
+                HTTPHelper.EndSession(HttpContext, this);
+
             return View( "Index", objUser );
         }
 
@@ -311,6 +378,85 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
             }
 
             return null;
+        }
+
+        // PRIVATE METHODS For Entity work
+
+        // Read from the partitition associated with the entity name (hash of entity name determines with partitiion holds the data)
+        private async Task<object> ExecuteGET(Type targetObjectType, string targetServiceType, string servicePathAndQuery, string entityName, string entityKey, HttpClient httpClient, FabricClient fabricClient, IApplicationLifetime appLifetime)
+        {
+            object objRet = null;
+            ServiceUriBuilder uriBuilder = new ServiceUriBuilder(targetServiceType);
+            Uri serviceUri = uriBuilder.Build();
+            long targetSiteServicePartitionKey = FnvHash.Hash(entityName);
+            Uri getUrl = new HttpServiceUriBuilder()
+                .SetServiceName(serviceUri)
+                .SetPartitionKey(targetSiteServicePartitionKey)
+                .SetServicePathAndQuery(servicePathAndQuery)
+                .Build();
+
+            HttpResponseMessage response = await httpClient.GetAsync(getUrl, appLifetime.ApplicationStopping);
+
+            if (response.StatusCode != System.Net.HttpStatusCode.OK)
+            {
+                return this.StatusCode((int)response.StatusCode);
+            }
+
+            JsonSerializer serializer = new JsonSerializer();
+            using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
+            {
+                using (JsonTextReader jsonReader = new JsonTextReader(streamReader))
+                {
+                    objRet = serializer.Deserialize(jsonReader, targetObjectType);
+                }
+            }
+
+            return objRet;
+        }
+
+        private async Task<bool> ExecutePOST(Type targetObjectType, string targetServiceType, string servicePathAndQuery, string entityName, object bodyObject, HttpClient httpClient, FabricClient fabricClient, IApplicationLifetime appLifetime)
+        {
+            bool bRet = false;
+            ServiceUriBuilder uriBuilder = new ServiceUriBuilder(targetServiceType);
+            Uri serviceUri = uriBuilder.Build();
+            long targetSiteServicePartitionKey = FnvHash.Hash(entityName);
+
+            Uri postUrl = new HttpServiceUriBuilder()
+                .SetServiceName(serviceUri)
+                .SetPartitionKey(targetSiteServicePartitionKey)
+                .SetServicePathAndQuery(servicePathAndQuery)
+                .Build();
+
+            string jsonStr = JsonConvert.SerializeObject(bodyObject);
+            MemoryStream mStrm = new MemoryStream(Encoding.UTF8.GetBytes(jsonStr));
+
+            using (StreamContent postContent = new StreamContent(mStrm))
+            {
+                Debug.WriteLine("On ExecutePOST postContent=[" + await postContent.ReadAsStringAsync() + "]");
+
+                postContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+                HttpResponseMessage response = await httpClient.PostAsync(postUrl, postContent, appLifetime.ApplicationStopping);
+
+                if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                {
+                    // This service expects the receiving target site service to return HTTP 400 if the device message was malformed.
+                    // In this example, the message is simply logged.
+                    // Your application should handle all possible error status codes from the receiving service
+                    // and treat the message as a "poison" message.
+                    // Message processing should be allowed to continue after a poison message is detected.
+
+                    string responseContent = await response.Content.ReadAsStringAsync();
+
+                    Debug.WriteLine("On Execute POST for entity[" + entityName + "] request[" + servicePathAndQuery + "] result=[" + responseContent + "]");
+                }
+                else
+                {
+                    bRet = true;
+                }
+            }
+
+            return bRet;
         }
     }
 }

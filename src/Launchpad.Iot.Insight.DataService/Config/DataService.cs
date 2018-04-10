@@ -22,8 +22,11 @@ namespace Launchpad.Iot.Insight.DataService
 
     internal sealed class DataService : StatefulService
     {
+        internal const string EntitiesDictionaryName = "store://entities/dictionary";
+        internal const string IdentitiesDictionaryName = "store://identities/dictionary";
         internal const string EventDictionaryName = "store://events/dictionary";
         internal const string EventQueueName = "store://events/queue";
+
         private const int OffloadBatchSize = 100;
         private const int DrainIteration = 5;
         private readonly TimeSpan OffloadBatchInterval = TimeSpan.FromSeconds(10);
