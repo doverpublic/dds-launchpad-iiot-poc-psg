@@ -193,9 +193,9 @@
       <Project>{35072B44-BC38-4D61-B96C-AF2BCFFAFB41}</Project>
       <Name>Iot.Common</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Launchpad.App.Common\Launchpad.App.Common.csproj">
+    <ProjectReference Include="..\TargetSolution\TargetSolution.csproj">
       <Project>{d39f6d71-d17a-4435-be65-d57d2b86abf0}</Project>
-      <Name>Launchpad.App.Common</Name>
+      <Name>TargetSolution</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

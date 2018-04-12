@@ -19,7 +19,6 @@ namespace Launchpad.Iot.DeviceEmulator
     using System.Collections.Generic;
     using System.Collections.Specialized;
 
-    using Launchpad.App.Common;
     using global::Iot.Common;
 
     internal class Program
@@ -113,8 +112,8 @@ namespace Launchpad.Iot.DeviceEmulator
                         {
                             devices = await registryManager.GetDevicesAsync(Int32.MaxValue);
                             targetSites = (await fabricClient.QueryManager.GetApplicationListAsync())
-                                .Where(x => x.ApplicationTypeName == Launchpad.App.Common.Names.InsightApplicationTypeName)
-                                .Select(x => x.ApplicationName.ToString().Replace(Launchpad.App.Common.Names.InsightApplicationNamePrefix + "/", ""));
+                                .Where(x => x.ApplicationTypeName == Names.InsightApplicationTypeName)
+                                .Select(x => x.ApplicationName.ToString().Replace(Names.InsightApplicationNamePrefix + "/", ""));
 
                             Console.WriteLine();
                             Console.WriteLine("Devices IDs: ");
@@ -267,8 +266,8 @@ namespace Launchpad.Iot.DeviceEmulator
 
             NameValueCollection keyFields = new NameValueCollection();
 
-            keyFields.Add(Launchpad.App.Common.Names.EventKeyFieldDeviceId, deviceId);
-            keyFields.Add(Launchpad.App.Common.Names.EventKeyFieldTargetSite, targetSite);
+            keyFields.Add(Names.EventKeyFieldDeviceId, deviceId);
+            keyFields.Add(Names.EventKeyFieldTargetSite, targetSite);
 
             await IoTHubClient.SendMessageToIoTHubAsync(connectionString, devices, keyFields, events, messageContent);
         }
@@ -295,8 +294,8 @@ namespace Launchpad.Iot.DeviceEmulator
 
                     if( deviceId.Length != 0 )
                     {
-                        keyFields.Add(Launchpad.App.Common.Names.EventKeyFieldDeviceId, deviceId);
-                        keyFields.Add(Launchpad.App.Common.Names.EventKeyFieldTargetSite, targetSite);
+                        keyFields.Add(Names.EventKeyFieldDeviceId, deviceId);
+                        keyFields.Add(Names.EventKeyFieldTargetSite, targetSite);
                     }
 
                     bool continueProcess = events.ReplayFlag;

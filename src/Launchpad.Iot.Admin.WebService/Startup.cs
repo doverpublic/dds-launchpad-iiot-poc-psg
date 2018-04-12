@@ -21,8 +21,8 @@ namespace Launchpad.Iot.Admin.WebService
         {
             IConfigurationBuilder builder = new ConfigurationBuilder()
                 .SetBasePath(env.ContentRootPath)
-                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-                .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true)
+                .AddJsonFile("Config/appsettings.json", optional: true, reloadOnChange: true)
+                .AddJsonFile($"Config/appsettings.{env.EnvironmentName}.json", optional: true)
                 .AddEnvironmentVariables();
             this.Configuration = builder.Build();
         }

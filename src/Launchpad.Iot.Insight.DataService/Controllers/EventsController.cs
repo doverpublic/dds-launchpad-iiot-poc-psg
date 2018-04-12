@@ -66,9 +66,9 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
 
             DeviceEventSeries eventList = new DeviceEventSeries(deviceId, events);
 
-            IReliableDictionary<string, DeviceEventSeries> storeInProgressMessage =  await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEventSeries>>(DataService.EventDictionaryName);
-            IReliableDictionary<DateTimeOffset, DeviceEventSeries> storeCompletedMessages = await this.stateManager.GetOrAddAsync<IReliableDictionary<DateTimeOffset, DeviceEventSeries>>(DataService.EventDictionaryName);
-            IReliableDictionary<string, EdgeDevice> storeDeviceCounters = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, EdgeDevice>>(DataService.EventDictionaryName);
+            IReliableDictionary<string, DeviceEventSeries> storeInProgressMessage =  await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEventSeries>>(TargetSolution.Names.EventLatestDictionaryName);
+            IReliableDictionary<DateTimeOffset, DeviceEventSeries> storeCompletedMessages = await this.stateManager.GetOrAddAsync<IReliableDictionary<DateTimeOffset, DeviceEventSeries>>(TargetSolution.Names.EventHistoryDictionaryName);
+            IReliableDictionary<string, EdgeDevice> storeDeviceCounters = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, EdgeDevice>>(TargetSolution.Names.EventCountsDictionaryName);
 
 
             using (ITransaction tx = this.stateManager.CreateTransaction())
@@ -87,7 +87,8 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                 if(completedMessage != null)
                 {
                     EdgeDevice device = null;
-                    ConditionalValue<EdgeDevice> deviceValue = await storeDeviceCounters.TryGetValueAsync(tx, deviceId);
+
+                    ConditionalValue<EdgeDevice> deviceValue = await storeDeviceCounters.TryGetValueAsync(tx, deviceId) ;
 
                     if (deviceValue.HasValue)
                         device = deviceValue.Value;
@@ -99,36 +100,25 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
 
                     while( tryAgain )
                     {
-                        // we don't expected ever to get a collision of a message timestamp for a Device message
-                        // but just in case we add a millisencond until we have a valid spot to save the message
-                        await storeCompletedMessages.AddOrUpdateAsync(
+                        tryAgain = await storeCompletedMessages.ContainsKeyAsync(tx, completedMessage.Timestamp);
+
+                        if( tryAgain )
+                        {
+                            completedMessage.Timestamp.AddMilliseconds(1);
+                        }
+                        else
+                        {
+                            await storeCompletedMessages.AddOrUpdateAsync(
                                 tx,
                                 completedMessage.Timestamp,
                                 completedMessage,
                                 (key, currentValue) =>
                                 {
-                                    if (key == completedMessage.Timestamp)
-                                    {
-                                        completedMessage.Timestamp.AddMilliseconds(1);
-                                        Debug.WriteLine("On EventsController.Post - timestamp collision for Message timestamp=[{0}]", completedMessage.Timestamp.ToString());
-                                        return currentValue;
-                                    }
-                                    else
-                                    {
-                                        tryAgain = false;
-                                        return completedMessage;
-                                    }
-                                });
+                                    return completedMessage;
+                                }
+                           );
+                        }
                     }
-
-                    await storeInProgressMessage.AddOrUpdateAsync(
-                        tx,
-                        deviceId,
-                        eventList,
-                        (key, currentValue) =>
-                        {
-                            return ManageDeviceEventSeriesContent(currentValue, eventList, out completedMessage);
-                        });
 
                     device.AddEventCount();
 

@@ -10,8 +10,7 @@ namespace Iot.Common
     [DataContract]
     public class UserProfile
     {
-        static UserProfile() { EntityRegistry.RegisterEntity("userprofile", new UserProfile().GetType()); }
-
+        // This is a temporary entity - it will never be saved to storage
         public UserProfile()
         {
             RegisterUser = false;

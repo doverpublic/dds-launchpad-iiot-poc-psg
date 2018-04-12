@@ -37,7 +37,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Iot.Common\Iot.Common.csproj" />
-    <ProjectReference Include="..\Launchpad.App.Common\Launchpad.App.Common.csproj" />
+    <ProjectReference Include="..\TargetSolution\TargetSolution.csproj" />
   </ItemGroup>
 
 </Project>

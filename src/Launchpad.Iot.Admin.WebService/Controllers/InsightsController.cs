@@ -38,7 +38,7 @@ namespace Launchpad.Iot.Admin.WebService.Controllers
 
             return this.Ok(
                 applications
-                    .Where(x => x.ApplicationTypeName == Launchpad.App.Common.Names.InsightApplicationTypeName)
+                    .Where(x => x.ApplicationTypeName == Names.InsightApplicationTypeName)
                     .Select(
                         x =>
                             new ApplicationViewModel(
@@ -55,14 +55,14 @@ namespace Launchpad.Iot.Admin.WebService.Controllers
             // First create the application instance.
             // This won't actually create the services yet.
             ApplicationDescription application = new ApplicationDescription(
-                new Uri($"{Launchpad.App.Common.Names.InsightApplicationNamePrefix}/{targetSiteName}"),
-                Launchpad.App.Common.Names.InsightApplicationTypeName,
+                new Uri($"{Names.InsightApplicationNamePrefix}/{targetSiteName}"),
+                Names.InsightApplicationTypeName,
                 parameters.Version);
 
             await this.fabricClient.ApplicationManager.CreateApplicationAsync(application, this.operationTimeout, this.appLifetime.ApplicationStopping);
 
             // Now create the data service in the new application instance.
-            ServiceUriBuilder dataServiceNameUriBuilder = new ServiceUriBuilder(application.ApplicationName.ToString(), Launchpad.App.Common.Names.InsightDataServiceName);
+            ServiceUriBuilder dataServiceNameUriBuilder = new ServiceUriBuilder(application.ApplicationName.ToString(), Names.InsightDataServiceName);
             StatefulServiceDescription dataServiceDescription = new StatefulServiceDescription()
             {
                 ApplicationName = application.ApplicationName,
@@ -71,20 +71,20 @@ namespace Launchpad.Iot.Admin.WebService.Controllers
                 TargetReplicaSetSize = 3,
                 PartitionSchemeDescription = new UniformInt64RangePartitionSchemeDescription(parameters.DataPartitionCount, Int64.MinValue, Int64.MaxValue),
                 ServiceName = dataServiceNameUriBuilder.Build(),
-                ServiceTypeName = Launchpad.App.Common.Names.InsightDataServiceTypeName
+                ServiceTypeName = Names.InsightDataServiceTypeName
             };
 
             await this.fabricClient.ServiceManager.CreateServiceAsync(dataServiceDescription, this.operationTimeout, this.appLifetime.ApplicationStopping);
 
             // And finally, create the web service in the new application instance.
-            ServiceUriBuilder webServiceNameUriBuilder = new ServiceUriBuilder(application.ApplicationName.ToString(), Launchpad.App.Common.Names.InsightWebServiceName);
+            ServiceUriBuilder webServiceNameUriBuilder = new ServiceUriBuilder(application.ApplicationName.ToString(), Names.InsightWebServiceName);
             StatelessServiceDescription webServiceDescription = new StatelessServiceDescription()
             {
                 ApplicationName = application.ApplicationName,
                 InstanceCount = parameters.WebInstanceCount,
                 PartitionSchemeDescription = new SingletonPartitionSchemeDescription(),
                 ServiceName = webServiceNameUriBuilder.Build(),
-                ServiceTypeName = Launchpad.App.Common.Names.InsightWebServiceTypeName
+                ServiceTypeName = Names.InsightWebServiceTypeName
             };
 
             await this.fabricClient.ServiceManager.CreateServiceAsync(webServiceDescription, this.operationTimeout, this.appLifetime.ApplicationStopping);
@@ -100,7 +100,7 @@ namespace Launchpad.Iot.Admin.WebService.Controllers
             try
             {
                 await this.fabricClient.ApplicationManager.DeleteApplicationAsync(
-                    new DeleteApplicationDescription(new Uri($"{Launchpad.App.Common.Names.InsightApplicationNamePrefix}/{targetSiteName}")),
+                    new DeleteApplicationDescription(new Uri($"{Names.InsightApplicationNamePrefix}/{targetSiteName}")),
                     this.operationTimeout,
                     this.appLifetime.ApplicationStopping);
             }

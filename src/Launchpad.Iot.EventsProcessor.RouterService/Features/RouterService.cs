@@ -21,7 +21,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
     using Microsoft.ServiceFabric.Services.Runtime;
 
     using global::Iot.Common;
-    using Launchpad.App.Common;
+    using TargetSolution;
 
     /// <summary>
     /// This service continuously pulls from IoT Hub and sends events off to target site applications.
@@ -124,13 +124,15 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                                                                                 eventHubReceiver.Name, eventData.PartitionKey, eventData.SequenceNumber );
                                 }
 
-                                string targetSite = (string)eventData.Properties[Launchpad.App.Common.Names.EventKeyFieldTargetSite ];
-                                string deviceId = (string)eventData.Properties[Launchpad.App.Common.Names.EventKeyFieldDeviceId ];
+                                string targetSite = (string)eventData.Properties[global::Iot.Common.Names.EventKeyFieldTargetSite];
+                                string deviceId = (string)eventData.Properties[global::Iot.Common.Names.EventKeyFieldDeviceId ];
 
                                 // This is the named service instance of the target site data service that the event should be sent to.
                                 // The targetSite id is part of the named service instance name.
                                 // The incoming device data stream specifie which target site the data belongs to.
-                                Uri targetSiteServiceName = new Uri($"{Launchpad.App.Common.Names.InsightApplicationNamePrefix}/{targetSite}/{Launchpad.App.Common.Names.InsightDataServiceName}");
+                                string prefix = global::Iot.Common.Names.InsightApplicationNamePrefix;
+                                string serviceName = global::Iot.Common.Names.InsightDataServiceName;
+                                Uri targetSiteServiceName = new Uri($"{prefix}/{targetSite}/{serviceName}");
                                 long targetSiteServicePartitionKey = FnvHash.Hash(deviceId);
 
                                 ServiceEventSource.Current.ServiceMessage(this.Context, "About to post data to Insight Data Service from device '{0}' to target site '{1}' - partitionKey '{2}' - serviceName '{3}'",

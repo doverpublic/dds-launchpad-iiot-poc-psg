@@ -12,7 +12,7 @@ namespace Iot.Common
     [DataContract]
     public class EdgeDevice
     {
-        static EdgeDevice() { EntityRegistry.RegisterEntity("device", new EdgeDevice().GetType()); }
+        static EdgeDevice() { EntityRegistry.RegisterEntity(Names.EntitiesDictionaryName, "device", new EdgeDevice().GetType()); }
 
         public EdgeDevice()
         {

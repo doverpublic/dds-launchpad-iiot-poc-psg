@@ -128,7 +128,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                     {
                         newUserRegistration = true;
                         Task<bool> result = ExecutePOST(typeof(UserProfile),
-                                                    Launchpad.App.Common.Names.InsightDataServiceName,
+                                                    Names.InsightDataServiceName,
                                                     "api/entities/user/withIdentity/" + objUser.UserName,
                                                     "user",
                                                     objUser,
@@ -144,7 +144,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                     if (!userAllowedToLogin && !newUserRegistration)
                     {
                         Task<object> userObject = ExecuteGET(typeof(UserProfile),
-                                                    Launchpad.App.Common.Names.InsightDataServiceName,
+                                                    Names.InsightDataServiceName,
                                                     "api/entities/user/byIdentity/" + objUser.UserName,
                                                     "user",
                                                     objUser.UserName,

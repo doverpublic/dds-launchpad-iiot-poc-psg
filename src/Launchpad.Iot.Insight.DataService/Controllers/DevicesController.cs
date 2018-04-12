@@ -5,6 +5,7 @@
 
 namespace Launchpad.Iot.Insight.DataService.Controllers
 {
+    using System;
     using System.Collections.Generic;
     using System.Threading;
     using System.Threading.Tasks;
@@ -15,6 +16,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
     using Microsoft.AspNetCore.Hosting;
 
     using global::Iot.Common;
+    using TargetSolution;
 
     [Route("api/[controller]")]
     public class DevicesController : Controller
@@ -34,7 +36,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         [Route("")]
         public async Task<IActionResult> GetAsync()
         {
-            IReliableDictionary<string, DeviceEventSeries> storeInProgressMessage = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEventSeries>>(DataService.EventDictionaryName);
+            IReliableDictionary<string, DeviceEventSeries> storeInProgressMessage = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEventSeries>>(TargetSolution.Names.EventLatestDictionaryName);
 
             List<object> devices = new List<object>();
             using (ITransaction tx = this.stateManager.CreateTransaction())
@@ -60,24 +62,43 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         [Route("queue/length")]
         public async Task<IActionResult> GetQueueLengthAsync()
         {
-            long count = 0;
-            IReliableDictionary<string, EdgeDevice> storeDeviceCounters = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, EdgeDevice>>(DataService.EventDictionaryName);
+            IReliableDictionary<DateTimeOffset, DeviceEventSeries> storeCompletedMessages = await this.stateManager.GetOrAddAsync<IReliableDictionary<DateTimeOffset, DeviceEventSeries>>(TargetSolution.Names.EventHistoryDictionaryName);
 
             using (ITransaction tx = this.stateManager.CreateTransaction())
             {
-                IAsyncEnumerable<KeyValuePair<string, EdgeDevice>> enumerable = await storeDeviceCounters.CreateEnumerableAsync(tx);
-                IAsyncEnumerator<KeyValuePair<string, EdgeDevice>> enumerator = enumerable.GetAsyncEnumerator();
-
-                while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
-                {
-                    string deviceId = enumerator.Current.Key;
-                    EdgeDevice device = enumerator.Current.Value;
-
-                    count += device.EventsCount;
-                }
+                long count = await storeCompletedMessages.GetCountAsync(tx);
 
                 return this.Ok(count);
             }
+        }
+
+        // PRIVATE Methods
+        public class StateManagerHelper<TKeyType,TValueType> where TKeyType : IEquatable<TKeyType> , IComparable<TKeyType>
+        {
+            public static async Task<List<KeyValuePair<TKeyType, TValueType>>> GetAllObjectsFromStateManagerFor(ITransaction tx, IReliableStateManager stateManager, string dictionaryName, IApplicationLifetime appLifetime)
+            {
+                List< KeyValuePair <TKeyType, TValueType >> listRet = new List<KeyValuePair<TKeyType, TValueType>>();
+                
+                IReliableDictionary <TKeyType, TValueType> dictionary = await stateManager.GetOrAddAsync<IReliableDictionary<TKeyType, TValueType>>(dictionaryName);
+
+                using (tx)
+                {
+                    IAsyncEnumerable<KeyValuePair<TKeyType, TValueType>> enumerable = await dictionary.CreateEnumerableAsync(tx);
+                    IAsyncEnumerator<KeyValuePair<TKeyType, TValueType>> enumerator = enumerable.GetAsyncEnumerator();
+
+                    while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
+                    {
+                        if(enumerator.Current.Value.GetType() == typeof( TValueType) )
+                        {
+                            listRet.Add(new KeyValuePair<TKeyType, TValueType>(enumerator.Current.Key, (TValueType)enumerator.Current.Value));
+                        }
+
+                    }
+
+                    return listRet;
+                }
+            }
+
         }
     }
 }

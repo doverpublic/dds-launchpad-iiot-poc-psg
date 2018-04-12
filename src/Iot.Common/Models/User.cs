@@ -10,7 +10,7 @@ namespace Iot.Common
     [DataContract]
     public class User
     {
-        static User() { EntityRegistry.RegisterEntity("user", new User().GetType()); }
+        static User() { EntityRegistry.RegisterEntity(Names.EntitiesDictionaryName, "user", new User().GetType()); }
 
         public User()
         {
