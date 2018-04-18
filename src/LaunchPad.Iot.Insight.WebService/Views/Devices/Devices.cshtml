@@ -5,7 +5,7 @@
 <div id="main">
     <div id="result"></div>
     <div class="tile">
-        <h3>Count of Device Events In Process:</h3>
+        <h3>Count of Device Events Processed:</h3>
         <div id="queueLength">Loading..</div>
     </div>
     <div class="tile">
@@ -30,7 +30,7 @@
 
             refreshDeviceList = function(apiUrl, $deviceList) {
                 $.ajax({
-                    url: path + apiUrl + '?___ReportsSecretKey___=A58528892D4827FCBD37EE9E1CC88DE82EFA08EC',
+                    url: path + apiUrl,
                     method: 'GET',
                     contentType: 'application/json',
                     dataType: 'json',
@@ -94,7 +94,7 @@
 
             refreshQueueLength = function(apiUrl, $queueElement) {
                 $.ajax({
-                        url: path + apiUrl + '?___ReportsSecretKey___=A58528892D4827FCBD37EE9E1CC88DE82EFA08EC',
+                        url: path + apiUrl,
                         method: 'GET',
                         contentType: 'application/json',
                         dataType: 'json',
