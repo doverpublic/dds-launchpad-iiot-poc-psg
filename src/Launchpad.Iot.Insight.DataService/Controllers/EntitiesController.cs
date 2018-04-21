@@ -8,6 +8,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
+    using System.Fabric;
     using System.Threading;
     using System.Threading.Tasks;
     using Iot.Insight.DataService.Models;
@@ -22,13 +23,14 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
     public class EntitiesController : Controller
     {
         private readonly IApplicationLifetime appLifetime;
-
         private readonly IReliableStateManager stateManager;
+        private readonly StatefulServiceContext context;
 
-        public EntitiesController(IReliableStateManager stateManager, IApplicationLifetime appLifetime)
+        public EntitiesController(IReliableStateManager stateManager, StatefulServiceContext context, IApplicationLifetime appLifetime)
         {
             this.stateManager = stateManager;
             this.appLifetime = appLifetime;
+            this.context = context;
         }
 
 
@@ -41,20 +43,33 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
 
             using (ITransaction tx = this.stateManager.CreateTransaction())
             {
-                var result = await entitiesDictionary.TryGetValueAsync(tx, id);
-
-                if( result.HasValue )
+                try
                 {
-                    userRet = new User();
+                    var result = await entitiesDictionary.TryGetValueAsync(tx, id);
 
-                    userRet.Id = id;
-                    userRet.FirstName = result.Value.FirstName;
-                    userRet.LastName = result.Value.LastName;
-                    userRet.Password = result.Value.Password;
-                    userRet.PasswordCreated = result.Value.PasswordCreated;
-                    userRet.Username = result.Value.Username;
+                    if (result.HasValue)
+                    {
+                        userRet = new User();
+
+                        userRet.Id = id;
+                        userRet.FirstName = result.Value.FirstName;
+                        userRet.LastName = result.Value.LastName;
+                        userRet.Password = result.Value.Password;
+                        userRet.PasswordCreated = result.Value.PasswordCreated;
+                        userRet.Username = result.Value.Username;
+                    }
+                    await tx.CommitAsync();
                 }
-                await tx.CommitAsync();
+                catch (TimeoutException te)
+                {
+                    // transient error. Could Retry if one desires .
+                    ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - ReadEntityById - TimeoutException : Message=[{te.ToString()}]");
+                }
+                catch (Exception ex)
+                {
+                    ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - ReadEntityById - General Exception - Message=[{0}]", ex);
+                    tx.Abort();
+                }
             }
 
             return this.Ok(userRet);
@@ -70,18 +85,31 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
 
             using (ITransaction tx = this.stateManager.CreateTransaction())
             {
-                var result = await identitiesDictionary.TryGetValueAsync(tx, key);
-
-                if (result.HasValue)
+                try
                 {
-                    var userResult = await entitiesDictionary.TryGetValueAsync(tx, result.Value.ToString());
+                    var result = await identitiesDictionary.TryGetValueAsync(tx, key);
 
-                    userProfile.FirstName = userResult.Value.FirstName;
-                    userProfile.LastName = userResult.Value.LastName;
-                    userProfile.UserName = userResult.Value.Username;
-                    userProfile.Password = userResult.Value.Password;
+                    if (result.HasValue)
+                    {
+                        var userResult = await entitiesDictionary.TryGetValueAsync(tx, result.Value.ToString());
+
+                        userProfile.FirstName = userResult.Value.FirstName;
+                        userProfile.LastName = userResult.Value.LastName;
+                        userProfile.UserName = userResult.Value.Username;
+                        userProfile.Password = userResult.Value.Password;
+                    }
+                    await tx.CommitAsync();
                 }
-                await tx.CommitAsync();
+                catch (TimeoutException te)
+                {
+                    // transient error. Could Retry if one desires .
+                    ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - ReadEntityByIdentity - TimeoutException : Message=[{te.ToString()}]");
+                }
+                catch (Exception ex)
+                {
+                    ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - ReadEntityByIdentity - General Exception - Message=[{0}]", ex);
+                    tx.Abort();
+                }
             }
 
             return this.Ok(userProfile);
@@ -124,28 +152,71 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
 
             using (ITransaction tx = this.stateManager.CreateTransaction())
             {
+                int retryCount = 1;
 
-                await identitiesDictionary.AddAsync(tx, userProfile.UserName, id);
-                await entitiesDictionary.AddAsync(tx, id, user);
-                // Commit
-                await tx.CommitAsync();
+                while( retryCount > 0)
+                {
+                    try
+                    {
+                        await identitiesDictionary.AddAsync(tx, userProfile.UserName, id);
+                        await entitiesDictionary.AddAsync(tx, id, user);
+                        // Commit
+                        await tx.CommitAsync();
+                        retryCount = 0;
+                    }
+                    catch (TimeoutException te)
+                    {
+                        // transient error. Could Retry if one desires .
+                        ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - CreateEntity(Save) - TimeoutException : Retry Count#{retryCount}: Message=[{te.ToString()}]");
+
+                        if(global::Iot.Common.Names.TransactionsRetryCount < retryCount )
+                        {
+                            retryCount = 0;
+                        }
+                        else
+                        {
+                            retryCount++;
+
+                            await Task.Delay(global::Iot.Common.Names.TransactionRetryWaitIntervalInMills);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - CreateEntity(Save) - General Exception - Message=[{0}]", ex);
+                        retryCount = 0;
+                        tx.Abort();
+                    }
+                }
             }
 
             // now let's check if the commits have finished
             using (ITransaction tx = this.stateManager.CreateTransaction())
             {
-                bool keepReading = true;
-                while (keepReading)
+                try
                 {
-                    var result = await identitiesDictionary.TryGetValueAsync(tx, userProfile.UserName);
-
-                    if( result.Value.Equals(id))
+                    bool keepReading = true;
+                    while (keepReading)
                     {
-                        await tx.CommitAsync();
-                        bRet = true;
-                        break;
+                        var result = await identitiesDictionary.TryGetValueAsync(tx, userProfile.UserName);
+
+                        if (result.Value.Equals(id))
+                        {
+                            await tx.CommitAsync();
+                            bRet = true;
+                            break;
+                        }
+                        Thread.Sleep(10000);
                     }
-                    Thread.Sleep(10000);
+                }
+                catch (TimeoutException te)
+                {
+                    // transient error. Could Retry if one desires .
+                    ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - CreateEntity(Wait Save) - TimeoutException : Message=[{te.ToString()}]");
+                }
+                catch (Exception ex)
+                {
+                    ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - CreateEntity(Wait Save) - General Exception - Message=[{0}]", ex);
+                    tx.Abort();
                 }
             }
 

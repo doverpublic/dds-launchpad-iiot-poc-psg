@@ -14,6 +14,15 @@ namespace Launchpad.Iot.Admin.WebService.Controllers
             return this.View();
         }
 
+        [HttpGet]
+        [Route("/healthProbe")]
+        public IActionResult HealthProbe()
+        {
+            ServiceEventSource.Current.Message("Launchpad Admin - Health Probe From Azure");
+
+            return Ok();
+        }
+
         public IActionResult Error()
         {
             return this.View();

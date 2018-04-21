@@ -64,6 +64,7 @@ namespace Launchpad.Iot.Admin.WebService.Controllers
             // Application parameters are passed to the Events Processing application instance.
             NameValueCollection appInstanceParameters = new NameValueCollection();
             appInstanceParameters["IotHubConnectionString"] = parameters.IotHubConnectionString;
+            appInstanceParameters["IotHubProcessOnlyFutureEvents"] = parameters.IotHubProcessOnlyFutureEvents;
 
             ApplicationDescription application = new ApplicationDescription(
                 new Uri($"{Names.EventsProcessorApplicationPrefix}/{name}"),

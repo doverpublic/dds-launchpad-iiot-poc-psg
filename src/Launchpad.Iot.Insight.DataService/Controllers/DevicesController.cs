@@ -7,6 +7,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
 {
     using System;
     using System.Collections.Generic;
+    using System.Fabric;
     using System.Threading;
     using System.Threading.Tasks;
     using Iot.Insight.DataService.Models;
@@ -22,13 +23,14 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
     public class DevicesController : Controller
     {
         private readonly IApplicationLifetime appLifetime;
-
         private readonly IReliableStateManager stateManager;
+        private readonly StatefulServiceContext context;
 
-        public DevicesController(IReliableStateManager stateManager, IApplicationLifetime appLifetime)
+        public DevicesController(IReliableStateManager stateManager, StatefulServiceContext context, IApplicationLifetime appLifetime)
         {
             this.stateManager = stateManager;
             this.appLifetime = appLifetime;
+            this.context = context;
         }
 
 
@@ -39,19 +41,33 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
             IReliableDictionary<string, DeviceEventSeries> storeInProgressMessage = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEventSeries>>(TargetSolution.Names.EventLatestDictionaryName);
 
             List<object> devices = new List<object>();
+
             using (ITransaction tx = this.stateManager.CreateTransaction())
             {
-                IAsyncEnumerable<KeyValuePair<string, DeviceEventSeries>> enumerable = await storeInProgressMessage.CreateEnumerableAsync(tx);
-                IAsyncEnumerator<KeyValuePair<string, DeviceEventSeries>> enumerator = enumerable.GetAsyncEnumerator();
-
-                while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
+                try
                 {
-                    devices.Add(
-                        new
-                        {
-                            DeviceId = enumerator.Current.Key,
-                            enumerator.Current.Value.Events
-                        });
+                    IAsyncEnumerable<KeyValuePair<string, DeviceEventSeries>> enumerable = await storeInProgressMessage.CreateEnumerableAsync(tx);
+                    IAsyncEnumerator<KeyValuePair<string, DeviceEventSeries>> enumerator = enumerable.GetAsyncEnumerator();
+
+                    while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
+                    {
+                        devices.Add(
+                            new
+                            {
+                                DeviceId = enumerator.Current.Key,
+                                enumerator.Current.Value.Events
+                            });
+                    }
+                }
+                catch (TimeoutException te)
+                {
+                    // transient error. Could Retry if one desires .
+                    ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - GetAsync - TimeoutException : Message=[{te.ToString()}]");
+                }
+                catch (Exception ex)
+                {
+                    ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - GetAsync - General Exception - Message=[{0}]", ex);
+                    tx.Abort();
                 }
             }
 
@@ -63,10 +79,24 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         public async Task<IActionResult> GetQueueLengthAsync()
         {
             IReliableDictionary<DateTimeOffset, DeviceEventSeries> storeCompletedMessages = await this.stateManager.GetOrAddAsync<IReliableDictionary<DateTimeOffset, DeviceEventSeries>>(TargetSolution.Names.EventHistoryDictionaryName);
+            long count = -1;
 
             using (ITransaction tx = this.stateManager.CreateTransaction())
             {
-                long count = await storeCompletedMessages.GetCountAsync(tx);
+                try
+                {
+                    count = await storeCompletedMessages.GetCountAsync(tx);
+                }
+                catch (TimeoutException te)
+                {
+                    // transient error. Could Retry if one desires .
+                    ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - GetQueueLengthAsync - TimeoutException : Message=[{te.ToString()}]");
+                }
+                catch (Exception ex)
+                {
+                    ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - GetQueueLengthAsync - General Exception - Message=[{0}]", ex);
+                    tx.Abort();
+                }
 
                 return this.Ok(count);
             }
@@ -75,7 +105,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         // PRIVATE Methods
         public class StateManagerHelper<TKeyType,TValueType> where TKeyType : IEquatable<TKeyType> , IComparable<TKeyType>
         {
-            public static async Task<List<KeyValuePair<TKeyType, TValueType>>> GetAllObjectsFromStateManagerFor(ITransaction tx, IReliableStateManager stateManager, string dictionaryName, IApplicationLifetime appLifetime)
+            public static async Task<List<KeyValuePair<TKeyType, TValueType>>> GetAllObjectsFromStateManagerFor(StatefulServiceContext context,ITransaction tx, IReliableStateManager stateManager, string dictionaryName, IApplicationLifetime appLifetime)
             {
                 List< KeyValuePair <TKeyType, TValueType >> listRet = new List<KeyValuePair<TKeyType, TValueType>>();
                 
@@ -83,16 +113,29 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
 
                 using (tx)
                 {
-                    IAsyncEnumerable<KeyValuePair<TKeyType, TValueType>> enumerable = await dictionary.CreateEnumerableAsync(tx);
-                    IAsyncEnumerator<KeyValuePair<TKeyType, TValueType>> enumerator = enumerable.GetAsyncEnumerator();
-
-                    while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
+                    try
                     {
-                        if(enumerator.Current.Value.GetType() == typeof( TValueType) )
-                        {
-                            listRet.Add(new KeyValuePair<TKeyType, TValueType>(enumerator.Current.Key, (TValueType)enumerator.Current.Value));
-                        }
+                        IAsyncEnumerable<KeyValuePair<TKeyType, TValueType>> enumerable = await dictionary.CreateEnumerableAsync(tx);
+                        IAsyncEnumerator<KeyValuePair<TKeyType, TValueType>> enumerator = enumerable.GetAsyncEnumerator();
 
+                        while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
+                        {
+                            if (enumerator.Current.Value.GetType() == typeof(TValueType))
+                            {
+                                listRet.Add(new KeyValuePair<TKeyType, TValueType>(enumerator.Current.Key, (TValueType)enumerator.Current.Value));
+                            }
+
+                        }
+                    }
+                    catch (TimeoutException te)
+                    {
+                        // transient error. Could Retry if one desires .
+                        ServiceEventSource.Current.ServiceMessage( context, $"DataService - GetAllObjectsFromStateManagerFor - TimeoutException : Message=[{te.ToString()}]");
+                    }
+                    catch (Exception ex)
+                    {
+                        ServiceEventSource.Current.ServiceMessage( context, $"DataService - GetAllObjectsFromStateManagerFor - General Exception - Message=[{0}]", ex);
+                        tx.Abort();
                     }
 
                     return listRet;

@@ -9,5 +9,6 @@
 
   <Section Name="IoTHubConfigInformation">
     <Parameter Name="ConnectionString" Value="" MustOverride="true" />
+    <Parameter Name="ProcessOnlyFutureEvents" Value="" MustOverride="true" />
   </Section>
 </Settings>

@@ -7,8 +7,8 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 {
     using System;
     using System.Collections.Generic;
-    using System.Configuration;
     using System.Collections.Specialized;
+    using System.Configuration;
     using System.Diagnostics;
     using System.Fabric;
     using System.IO;
@@ -17,7 +17,6 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
     using System.Net.Http;
     using System.Linq;
     using System.Net.Http.Headers;
-    using System.Web;
 
     using Newtonsoft.Json;
 
@@ -77,6 +76,15 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
             ViewBag.Message = "";
             return View("Index");
+        }
+
+        [HttpGet]
+        [Route("/healthProbe")]
+        public IActionResult HealthProbe()
+        {
+            ServiceEventSource.Current.Message("Insight Webservice - Health Probe From Azure");
+
+            return Ok();
         }
 
         [HttpGet]
