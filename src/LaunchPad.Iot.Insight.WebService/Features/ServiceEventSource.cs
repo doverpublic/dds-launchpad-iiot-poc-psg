@@ -69,9 +69,9 @@ namespace Launchpad.Iot.Insight.WebService
         [Event(MessageEventId, Level = EventLevel.Informational, Message = "{0}")]
         public void Message(string message)
         {
+            telemetry.TrackTrace("Message=[" + message + "]");
             if (this.IsEnabled())
             {
-                telemetry.TrackTrace("Message=[" + message + "]");
                 this.WriteEvent(MessageEventId, message);
             }
         }
@@ -79,12 +79,12 @@ namespace Launchpad.Iot.Insight.WebService
         [NonEvent]
         public void ServiceMessage(ServiceContext serviceContext, string message, params object[] args)
         {
+            string finalMessage = string.Format(message, args);
+
+            telemetry.TrackTrace("ServiceMessage=[" + finalMessage + "] From Service=[" + serviceContext.ServiceName.ToString() + "] Service Type=[" + serviceContext.ServiceTypeName + "] InstanceId=[" + GetReplicaOrInstanceId(serviceContext) + "] PartitionId=[" + serviceContext.PartitionId + "] Application Name=[" + serviceContext.CodePackageActivationContext.ApplicationName + "] Application Type=[" + serviceContext.CodePackageActivationContext.ApplicationTypeName + "] Node Name=[" + serviceContext.NodeContext.NodeName + "]");
+
             if (this.IsEnabled())
             {
-                string finalMessage = string.Format(message, args);
-
-                telemetry.TrackTrace("ServiceMessage=[" + finalMessage + "] From Service=[" + serviceContext.ServiceName.ToString() + "] Service Type=[" + serviceContext.ServiceTypeName + "] InstanceId=[" + GetReplicaOrInstanceId(serviceContext) + "] PartitionId=[" + serviceContext.PartitionId + "] Application Name=[" + serviceContext.CodePackageActivationContext.ApplicationName + "] Application Type=[" + serviceContext.CodePackageActivationContext.ApplicationTypeName + "] Node Name=[" + serviceContext.NodeContext.NodeName + "]");
-
                 this.ServiceMessage(
                     serviceContext.ServiceName.ToString(),
                     serviceContext.ServiceTypeName,

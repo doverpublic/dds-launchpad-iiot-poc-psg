@@ -77,7 +77,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
 
                                  url = urlParts[0] + ":" + urlParts[1] + ":" + port;
 
-                                 ServiceEventSource.Current.Message($"Router Service Listening on {url}");
+                                 ServiceEventSource.Current.Message($"Router Service Initialized on id {port}");
                                  return new WebHostBuilder()
                                      .UseKestrel()
                                      .ConfigureServices(
@@ -89,7 +89,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                                      .UseServiceFabricIntegration(listener, ServiceFabricIntegrationOptions.UseUniqueServiceUrl)
                                      //.UseStartup<Startup>()  // this service does not use the service startup
                                      .UseApplicationInsights()
-                                     .UseUrls(url)
+                                     //.UseUrls(url)
                                      .Build();
                              })
                      )
