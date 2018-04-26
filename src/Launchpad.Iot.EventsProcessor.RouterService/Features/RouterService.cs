@@ -60,26 +60,22 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
              {
                  new ServiceReplicaListener(
                      context =>
-                         new KestrelCommunicationListener(
+                        new WebListenerCommunicationListener(
                              context,
+                             "ServiceEndpoint",
                              (url, listener) =>
                              {
 
                                  // The idea is to create a listening port for each instance 
                                  // This application will never be called - the only purpose of this listener is
-                                 // to enable the sending logs to the application insigths server
-                                 // In case the port colides with another service already up and ruuning the 
-                                 // the system will restart the service until it gets a free port
-                                 Random rnd = new Random();
 
-                                 int port = rnd.Next( 20085, 20099);
-                                 string[] urlParts = url.Split(':');
+                                 string serviceId = FnvHash.GetUniqueId();
 
-                                 url = urlParts[0] + ":" + urlParts[1] + ":" + port;
+                                 url += $"/eventsprocessor/{serviceId}";
 
-                                 ServiceEventSource.Current.Message($"Router Service Initialized on id {port}");
+                                 ServiceEventSource.Current.Message( "Router Service Initialized on " + url + " - Dummy url not to be used" );
                                  return new WebHostBuilder()
-                                     .UseKestrel()
+                                     .UseWebListener()
                                      .ConfigureServices(
                                          services => services
                                              .AddSingleton<StatefulServiceContext>(this.Context)
@@ -87,9 +83,9 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                                              .AddSingleton<ITelemetryInitializer>((serviceProvider) => FabricTelemetryInitializerExtension.CreateFabricTelemetryInitializer(context)))
                                      .UseContentRoot(Directory.GetCurrentDirectory())
                                      .UseServiceFabricIntegration(listener, ServiceFabricIntegrationOptions.UseUniqueServiceUrl)
-                                     //.UseStartup<Startup>()  // this service does not use the service startup
+                                     .UseStartup<Startup>()  
                                      .UseApplicationInsights()
-                                     //.UseUrls(url)
+                                     .UseUrls(url)
                                      .Build();
                              })
                      )

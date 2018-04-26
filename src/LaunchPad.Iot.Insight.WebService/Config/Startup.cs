@@ -18,15 +18,15 @@ namespace Launchpad.Iot.Insight.WebService
     {
         public Startup(IHostingEnvironment env)
         {
+            ServiceEventSource.Current.Message($"Launchpad Insight Web Service  - Startup");
             IConfigurationBuilder builder = new ConfigurationBuilder()
                 .SetBasePath(env.ContentRootPath)
-                .AddJsonFile("Config/appsettings.json", optional: false, reloadOnChange: true)
-                .AddJsonFile($"Config/appsettings.{env.EnvironmentName}.json", optional: true)
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true)
                 .AddEnvironmentVariables();
             this.Configuration = builder.Build();
 
-            Console.WriteLine("On Launchpad.Iot.Insight.WebService Startup - Configuration has Sections");
-            Console.WriteLine("=============================================================================");
+            string message = "Configuration=[";
             foreach ( var section in this.Configuration.GetChildren() )
             {
                 ManageAppSettings.AddUpdateAppSettings(section.Key, section.Value);
@@ -38,9 +38,10 @@ namespace Launchpad.Iot.Insight.WebService
                     value = "****************"; 
                 }
 
-                Console.WriteLine( "Key=" + section.Key + " Path=" + section.Path + " Value=" + value + " To String=" + section.ToString() );
+                message += "Key=" + section.Key + " Path=" + section.Path + " Value=" + value + " To String=" + section.ToString() + "\n";
             }
-            Console.WriteLine("=============================================================================");
+
+            ServiceEventSource.Current.Message($"Launchpad Insight Web Service " + message + "]" );
         }
 
         public IConfigurationRoot Configuration { get; }
@@ -48,6 +49,7 @@ namespace Launchpad.Iot.Insight.WebService
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            ServiceEventSource.Current.Message($"Launchpad Insight Web Service  - Startup - Configure Services");
             // Add framework services.
             services.AddMvc();
         }
@@ -55,6 +57,7 @@ namespace Launchpad.Iot.Insight.WebService
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
+            ServiceEventSource.Current.Message($"Launchpad Insight Web Service  - Startup - Configure");
             loggerFactory.AddConsole(this.Configuration.GetSection("Logging"));
             loggerFactory.AddDebug();
 

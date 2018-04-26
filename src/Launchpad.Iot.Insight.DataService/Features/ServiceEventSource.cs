@@ -69,10 +69,22 @@ namespace Launchpad.Iot.Insight.DataService
         [Event(MessageEventId, Level = EventLevel.Informational, Message = "{0}")]
         public void Message(string message)
         {
-            telemetry.TrackTrace("Message=[" + message + "]");
+            string telemetryError = "";
+            try
+            {
+                telemetry.TrackTrace("Message=[" + message + "]");
+            }
+            catch (Exception ex)
+            {
+                telemetryError = "Error sending message to Application Insigth Exception Source=[" + ex.Source + "] Message=[" + ex.Message + "] Stack Trace=[" + ex.StackTrace + "]";
+            }
+
             if (this.IsEnabled())
             {
                 this.WriteEvent(MessageEventId, message);
+
+                if (telemetryError.Length > 0)
+                    this.WriteEvent(MessageEventId, telemetryError);
             }
         }
 
@@ -81,7 +93,15 @@ namespace Launchpad.Iot.Insight.DataService
         {
             string finalMessage = string.Format(message, args);
 
-            telemetry.TrackTrace("ServiceMessage=[" + finalMessage + "] From Service=[" + serviceContext.ServiceName.ToString() + "] Service Type=[" + serviceContext.ServiceTypeName + "] InstanceId=[" + GetReplicaOrInstanceId(serviceContext) + "] PartitionId=[" + serviceContext.PartitionId + "] Application Name=[" + serviceContext.CodePackageActivationContext.ApplicationName + "] Application Type=[" + serviceContext.CodePackageActivationContext.ApplicationTypeName + "] Node Name=[" + serviceContext.NodeContext.NodeName + "]");
+            string telemetryError = "";
+            try
+            {
+                telemetry.TrackTrace("ServiceMessage=[" + finalMessage + "] From Service=[" + serviceContext.ServiceName.ToString() + "] Service Type=[" + serviceContext.ServiceTypeName + "] InstanceId=[" + GetReplicaOrInstanceId(serviceContext) + "] PartitionId=[" + serviceContext.PartitionId + "] Application Name=[" + serviceContext.CodePackageActivationContext.ApplicationName + "] Application Type=[" + serviceContext.CodePackageActivationContext.ApplicationTypeName + "] Node Name=[" + serviceContext.NodeContext.NodeName + "]");
+            }
+            catch (Exception ex)
+            {
+                telemetryError = "Error sending message to Application Insigth Exception Source=[" + ex.Source + "] Message=[" + ex.Message + "] Stack Trace=[" + ex.StackTrace + "]";
+            }
 
             if (this.IsEnabled())
             {
@@ -94,6 +114,17 @@ namespace Launchpad.Iot.Insight.DataService
                     serviceContext.CodePackageActivationContext.ApplicationTypeName,
                     serviceContext.NodeContext.NodeName,
                     finalMessage);
+
+                if (telemetryError.Length > 0)
+                    this.ServiceMessage(
+                        serviceContext.ServiceName.ToString(),
+                        serviceContext.ServiceTypeName,
+                        GetReplicaOrInstanceId(serviceContext),
+                        serviceContext.PartitionId,
+                        serviceContext.CodePackageActivationContext.ApplicationName,
+                        serviceContext.CodePackageActivationContext.ApplicationTypeName,
+                        serviceContext.NodeContext.NodeName,
+                        telemetryError);
             }
         }
 

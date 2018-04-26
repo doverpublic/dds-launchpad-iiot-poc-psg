@@ -69,7 +69,11 @@ namespace Launchpad.Iot.Insight.WebService
         [Event(MessageEventId, Level = EventLevel.Informational, Message = "{0}")]
         public void Message(string message)
         {
-            telemetry.TrackTrace("Message=[" + message + "]");
+            if (message == null)
+                telemetry.TrackTrace("Message=[EMPTY MESSAGE]");
+            else
+                telemetry.TrackTrace("Message=[" + message + "]");
+
             if (this.IsEnabled())
             {
                 this.WriteEvent(MessageEventId, message);
