@@ -21,4 +21,7 @@
                                     ServerCertThumbprint="0123456789012345678901234567890123456789" />
   -->
 	<ClusterConnectionParameters ConnectionEndpoint="" />
+    <UpgradeDeployment Mode="UnmonitoredAuto" Enabled="true">
+        <Parameters Force="True" />
+    </UpgradeDeployment>
 </PublishProfile>

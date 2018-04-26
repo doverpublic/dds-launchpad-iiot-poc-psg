@@ -25,6 +25,9 @@
 								FindType="FindByThumbprint"
 								FindValue="A58528892D4827FCBD37EE9E1CC88DE82EFA08EC"
 								StoreLocation="CurrentUser"
-								StoreName="TrustedPeople" />								
+								StoreName="TrustedPeople" />
+    <UpgradeDeployment Mode="UnmonitoredAuto" Enabled="true">
+        <Parameters Force="True" />
+    </UpgradeDeployment>								
 </PublishProfile>
 

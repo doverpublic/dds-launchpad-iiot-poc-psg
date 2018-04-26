@@ -10,6 +10,10 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
     using System.Threading;
     using Microsoft.ServiceFabric.Services.Runtime;
 
+    using Microsoft.ApplicationInsights.Extensibility;
+    using Microsoft.ApplicationInsights.ServiceFabric;
+
+
     internal static class Program
     {
         /// <summary>

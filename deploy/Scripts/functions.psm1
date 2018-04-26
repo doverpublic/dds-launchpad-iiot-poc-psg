@@ -37,6 +37,7 @@ function Read-PublishProfile
 
     $publishProfile.ClusterConnectionParameters = Read-XmlElementAsHashtable $publishProfileXml.PublishProfile.Item("ClusterConnectionParameters")
     $publishProfile.UpgradeDeployment = Read-XmlElementAsHashtable $publishProfileXml.PublishProfile.Item("UpgradeDeployment")
+    $publishProfile.CopyPackageParameters = Read-XmlElementAsHashtable $publishProfileXml.PublishProfile.Item("CopyPackageParameters")
 
     if ($publishProfileXml.PublishProfile.Item("UpgradeDeployment"))
     {
@@ -47,7 +48,7 @@ function Read-PublishProfile
         }
     }
 
-    $publishProfileFolder = (Split-Path $PublishProfileFile)
+    # $publishProfileFolder = (Split-Path $PublishProfileFile) - not used 
     $publishProfile.ApplicationParameterFile = $publishProfileXml.PublishProfile.ApplicationParameterFile.Path
 
     return $publishProfile

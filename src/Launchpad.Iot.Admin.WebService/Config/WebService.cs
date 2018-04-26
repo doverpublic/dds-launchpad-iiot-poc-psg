@@ -17,6 +17,9 @@ namespace Launchpad.Iot.Admin.WebService
     using Microsoft.ServiceFabric.Services.Runtime;
     using Microsoft.ServiceFabric.Services.Communication.AspNetCore;
 
+    using Microsoft.ApplicationInsights.Extensibility;
+    using Microsoft.ApplicationInsights.ServiceFabric;
+
     internal sealed class WebService : StatelessService
     {
         private readonly FabricClient fabricClient;
@@ -40,16 +43,16 @@ namespace Launchpad.Iot.Admin.WebService
                             (url, listener) =>
                             {
                                 url += "/launchpad/iot";
-
-                                ServiceEventSource.Current.Message($"Launchpad Admin WebService starting on {url}");
-
+                                ServiceEventSource.Current.Message($"Launchpad Admin WebService listening on {url}");
                                 return new WebHostBuilder().UseWebListener()
                                     .ConfigureServices(
                                         services => services
-                                            .AddSingleton<FabricClient>(this.fabricClient))
+                                            .AddSingleton<FabricClient>(this.fabricClient)
+                                            .AddSingleton<ITelemetryInitializer>((serviceProvider) => FabricTelemetryInitializerExtension.CreateFabricTelemetryInitializer(context)))
                                     .UseContentRoot(Directory.GetCurrentDirectory())
                                     .UseServiceFabricIntegration(listener, ServiceFabricIntegrationOptions.None)
                                     .UseStartup<Startup>()
+                                    .UseApplicationInsights()
                                     .UseUrls(url)
                                     .Build();
                             });

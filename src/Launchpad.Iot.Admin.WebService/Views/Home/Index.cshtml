@@ -9,6 +9,7 @@
             <h4 class="header">Add Events Processor Application</h4>
             <div class="addApplication">
                 <label class="label">Name</label><input id="iotHubName" type="text" placeholder="example: MainHub" />
+                <label class="label">Type Version</label><input id="iotHubAppTypeVersion" type="text" placeholder="1.0.0" />
                 <label class="label">Iot Hub connection string</label><input id="iotHubConnectionString" type="text" placeholder="" />
                 <label class="label">Process Only Future Events</label><input id="iotHubProcessOnlyFutureEvents" type="text" placeholder="" />
                 <button id="addIotHubButton">Add</button>
@@ -24,9 +25,10 @@
         <div class="tile">
             <h4 class="header">Add Insight Application</h4>
             <div class="addApplication">
-                <label class="label">Name</label><input id="targetSiteName" type="text" placeholder="example: Contoso"/>
-                <label class="label">Data Service Partition Count</label><input id="targetSitePartitionCount" type="text" placeholder="example: 2"/>
-                <label class="label">Target Site Service Instance Count</label><input id="targetSiteInstanceCount" type="text" placeholder="1 for local, -1 for Azure"/>
+                <label class="label">Name</label><input id="targetSiteName" type="text" placeholder="example: Contoso" />
+                <label class="label">Type Version</label><input id="targetSiteAppTypeVersion" type="text" placeholder="1.0.0" />
+                <label class="label">Data Service Partition Count</label><input id="targetSitePartitionCount" type="text" placeholder="example: 2" />
+                <label class="label">Target Site Service Instance Count</label><input id="targetSiteInstanceCount" type="text" placeholder="example: 1" />
                 <button id="addTargetSiteButton">Add</button>
             </div>
         </div>
@@ -156,7 +158,7 @@
                 var params = {};
                 params.IotHubConnectionString = $('#iotHubConnectionString').val();
                 params.IotHubProcessOnlyFutureEvents = $('#iotHubProcessOnlyFutureEvents').val();
-                params.Version = '1.0.0';
+                params.Version = $('#iotHubAppTypeVersion').val();;
 
                 $.ajax({
                         url: path + '/api/eventsprocessor/' + name,
@@ -190,7 +192,7 @@
                 var params = {};
                 params.DataPartitionCount = $('#targetSitePartitionCount').val();
                 params.WebInstanceCount = $('#targetSiteInstanceCount').val();
-                params.Version = '1.0.0';
+                params.Version = $('#targetSiteAppTypeVersion').val();
 
                 $.ajax({
                         url: path + '/api/insights/' + name,

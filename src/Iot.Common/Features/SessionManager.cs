@@ -141,6 +141,10 @@ namespace Iot.Common
                         Console.WriteLine("On IsSessionExpired - Could not remove SessionContainer from sessions bag - sessionId=[" + sessionId + "]");
                 }
             }
+            else
+            {
+                bRet = true;
+            }
 
             return bRet;
         }

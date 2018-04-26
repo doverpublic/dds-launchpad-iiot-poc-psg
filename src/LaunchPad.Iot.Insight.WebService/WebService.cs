@@ -17,6 +17,9 @@ namespace Launchpad.Iot.Insight.WebService
     using System.Linq;
     using System.Net.Http;
 
+    using Microsoft.ApplicationInsights.Extensibility;
+    using Microsoft.ApplicationInsights.ServiceFabric;
+
     using global::Iot.Common;
 
     internal sealed class WebService : StatelessService
@@ -42,7 +45,7 @@ namespace Launchpad.Iot.Insight.WebService
                                 string targetSiteName = new Uri(context.CodePackageActivationContext.ApplicationName).Segments.Last();
                                 url += $"/{targetSiteName}";
 
-                                ServiceEventSource.Current.Message($"Listening on {url}");
+                                ServiceEventSource.Current.Message($"Insight Service Listening on {url}");
 
                                 return new WebHostBuilder()
                                     .UseWebListener()
@@ -50,10 +53,12 @@ namespace Launchpad.Iot.Insight.WebService
                                         services => services
                                             .AddSingleton<StatelessServiceContext>(context)
                                             .AddSingleton<FabricClient>(new FabricClient())
-                                            .AddSingleton<HttpClient>(new HttpClient(new HttpServiceClientHandler())))
+                                            .AddSingleton<HttpClient>(new HttpClient(new HttpServiceClientHandler()))
+                                            .AddSingleton<ITelemetryInitializer>((serviceProvider) => FabricTelemetryInitializerExtension.CreateFabricTelemetryInitializer(context)))
                                     .UseServiceFabricIntegration(listener, ServiceFabricIntegrationOptions.None)
                                     .UseContentRoot(Directory.GetCurrentDirectory())
                                     .UseStartup<Startup>()
+                                    .UseApplicationInsights()
                                     .UseUrls(url)
                                     .Build();
                             })

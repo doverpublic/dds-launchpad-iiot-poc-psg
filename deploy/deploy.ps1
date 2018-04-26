@@ -17,6 +17,15 @@ Name of the publish profile XML file to use for publishing. Example: Cloud, Loca
 .PARAMETER ApplicationParameter
 Hashtable of the Service Fabric application parameters to be used for the application.
 
+.PARAMETER UnregisterUnusedApplicationVersionsAfterUpgrade
+Indicates whether to unregister any unused application versions that exist after an upgrade is finished.
+
+.PARAMETER OverrideUpgradeBehavior
+Indicates the behavior used to override the upgrade settings specified by the publish profile.
+'None' indicates that the upgrade settings will not be overridden.
+'ForceUpgrade' indicates that an upgrade will occur with default settings, regardless of what is specified in the publish profile.
+'VetoUpgrade' indicates that an upgrade will not occur, regardless of what is specified in the publish profile.
+
 .PARAMETER OverwriteBehavior
 Overwrite Behavior if an application exists in the cluster with the same name. Available Options are Never, Always, SameAppTypeAndVersion.
 This setting is not applicable when upgrading an application.
@@ -40,7 +49,7 @@ The cluster connection parameters configured in the publish profile are ignored.
 Deploy a Debug build of the IoT project to a local 5-node cluster.
 
 .EXAMPLE
-.\deploy.ps1 -Configuration [Release,Debug] -PublishProfileName Cloud[File type e.g. .POC01]
+.\deploy.ps1 -Configuration [Release,Debug] -PublishProfileName Cloud[File type e.g. .POC01] -ApplicationParameters @{CustomParameter1='MyValue'; CustomParameter2='MyValue'}
 
 Deploy a Release build of the IoT project to a cluster defined in a publish profile file called Cloud.xml
 
@@ -56,7 +65,17 @@ Param
     $PublishProfileName = "Local.5Node",
 
     [Hashtable]
-    $ApplicationParameters = @{},
+    $ApplicationCreateParameters = @{},
+
+    [Hashtable]
+    $UpgradeParameters = @{},
+
+    [Boolean]
+    $UnregisterUnusedApplicationVersionsAfterUpgrade,
+
+    [String]
+    [ValidateSet('None', 'ForceUpgrade', 'VetoUpgrade')]
+    $OverrideUpgradeBehavior = 'None',
 
     [String]
     [ValidateSet('Never','Always','SameAppTypeAndVersion')]
@@ -72,7 +91,18 @@ Param
     $UsePublishProfileClusterConnection = $true,
 
     [Switch]
-    $SkipBuild = $true
+    $SkipBuild = $true,
+
+    [String]
+    $ApplicationToDeploy = "All",
+
+    [String]
+    [ValidateSet('New', 'Upgrade')]
+    $DeploymentType = "Upgrade",
+
+    [String]
+    $ApplicationInstanceToUpgrade
+
 )
 
 echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
@@ -108,7 +138,7 @@ Import-Module "$ModuleFolderPath\ServiceFabricSDK.ps1"
 Import-Module "$LocalDir\Scripts\functions.psm1"
 
 # Get the parameters file first so that one can reuse the profile name profile filename
-$ParametersfileName = $PublishProfileName + ".Parameters.xml"
+$ParametersfileName = "Default.Parameters.xml"
 
 # Get a publish profile from the profile XML files in the Deploy directory
 $PublishProfileName = $PublishProfileName + ".Profile.xml"
@@ -116,8 +146,22 @@ $PublishProfileName = $PublishProfileName + ".Profile.xml"
 $PublishProfileFile = [System.IO.Path]::Combine($LocalDir, "Profiles\$PublishProfileName")
 $PublishProfile = Read-PublishProfile $PublishProfileFile
 
-$ParametersfileName = [System.IO.Path]::Combine($LocalDir, "Profiles\$ParametersfileName")
+echo  ">>>>>> PublishProfilePath=$PublishProfileFile  <<<<<<"
+Write-Host ($PublishProfile | Out-String) -ForegroundColor Green 
+echo  ">>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
 
+
+$IsUpgrade = $DeploymentType -eq 'Upgrade' -and  ($publishProfile.UpgradeDeployment -and $publishProfile.UpgradeDeployment.Enabled -and $OverrideUpgradeBehavior -ne 'VetoUpgrade') -or $OverrideUpgradeBehavior -eq 'ForceUpgrade'
+
+$UpgradeParameters = $publishProfile.UpgradeDeployment.Parameters
+
+if ($OverrideUpgradeBehavior -eq 'ForceUpgrade')
+{
+    # Warning: Do not alter these upgrade parameters. It will create an inconsistency with Visual Studio's behavior.
+    $UpgradeParameters = @{ UnmonitoredAuto = $true; Force = $true }
+}
+
+$UpgradeParameters['UnregisterUnusedVersions'] = $UnregisterUnusedApplicationVersionsAfterUpgrade
 
 # Using the publish profile, connect to the SF cluster
 if ($UsePublishProfileClusterConnection)
@@ -161,71 +205,210 @@ echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
 echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
 echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
 
-echo ">>>>>>> About To Start Package Builds <<<<<<<<<"
 
 
 # Build and package the applications
 if( !$SkipBuild )
 {
+    echo ">>>>>>> About To Start Package Builds <<<<<<<<<"
+
     & "$LocalDir\buildPackages.cmd"
+
+    echo ">>>>>>> Finished Builds <<<<<<<<<"
+    echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
+    echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
+    echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
 }
 
 
-echo ">>>>>>> Finished Builds <<<<<<<<<"
-echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
-echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
-echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
 
 # Publish the packages
 
-echo ">>>>>>> About To Start Publishing for $EventsProcessorApplicationDir <<<<<<<<<"
-
-Publish-NewServiceFabricApplication `
-    -ApplicationPackagePath "$EventsProcessorApplicationDir\pkg\$Configuration" `
-    -ApplicationParameterFilePath "$LocalDir\Profiles\DummyApplicationParameters.xml" `
-    -Action "Register" `
-    -ApplicationParameter @{} `
-    -OverwriteBehavior $OverwriteBehavior `
-    -SkipPackageValidation:$SkipPackageValidation `
-    -CopyPackageTimeoutSec $CopyPackageTimeoutSec `
-    -ErrorAction Stop
-
-echo ">>>>>>> Finished Publish for $EventsProcessorApplicationDir <<<<<<<<<"
-echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
-echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
+echo  ">>>>>> Application Create Parameters Type=$ApplicationCreateParameters <<<<<<"
+Write-Host ($ApplicationCreateParameters | Out-String) -ForegroundColor Green
+echo  ">>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+echo  ">>>>>> Application Upgrade Parameters Type=$UpgradeParameters <<<<<<"
+Write-Host ($UpgradeParameters | Out-String) -ForegroundColor Green
+echo  ">>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
 
 
-echo ">>>>>>> About To Start Publishing for $InsightApplicationDir <<<<<<<<<"
+if ($ApplicationToDeploy -eq 'All'  -or $ApplicationToDeploy -eq 'EventsProcessor' )
+{
+    if ($IsUpgrade)
+    {
+       echo ">>>>>>> About To Start Publishing for $EventsProcessorApplicationDir [UPGRADE]<<<<<<<<<"
+       echo ">>>>>>> Parameters <<<<<<<<<<<<"
+       echo ApplicationName=["$ApplicationInstanceToUpgrade"]
+       echo ApplicationPackagePath=["$EventsProcessorApplicationDir\pkg\$Configuration"]
+       echo ApplicationParameterFilePath=["$EventsProcessorApplicationDir\pkg\$Configuration\$ParametersfileName"]
+       echo SkipPackageValidation=[$SkipPackageValidation]
+       echo CopyPackageTimeoutSec=[$CopyPackageTimeoutSec]
+       echo ">>>>>>>>>>>>>><<<<<<<<<<<<<<<<<"
 
-Publish-NewServiceFabricApplication `
-    -ApplicationPackagePath "$InsightApplicationDir\pkg\$Configuration" `
-    -ApplicationParameterFilePath "$LocalDir\Profiles\DummyApplicationParameters.xml" `
-    -Action "Register" `
-    -ApplicationParameter @{} `
-    -OverwriteBehavior $OverwriteBehavior `
-    -SkipPackageValidation:$SkipPackageValidation `
-    -CopyPackageTimeoutSec $CopyPackageTimeoutSec `
-    -ErrorAction Stop
+           if( $ApplicationInstanceToUpgrade )
+           {
+               Publish-UpgradedServiceFabricApplication -ApplicationName "$ApplicationInstanceToUpgrade" `
+                -ApplicationPackagePath "$EventsProcessorApplicationDir\pkg\$Configuration" `
+                -Action "RegisterAndUpgrade" `
+                -SkipPackageValidation:$SkipPackageValidation `
+                -CopyPackageTimeoutSec $CopyPackageTimeoutSec `
+                -ErrorAction Continue `
+                -ErrorVariable ProcessError
+           }
+           else
+           {
+               Publish-UpgradedServiceFabricApplication `
+                -ApplicationPackagePath "$EventsProcessorApplicationDir\pkg\$Configuration" `
+                -ApplicationParameterFilePath "$AdminApplicationDir\pkg\$Configuration\$ParametersfileName" `
+                -Action "RegisterAndUpgrade" `
+                -SkipPackageValidation:$SkipPackageValidation `
+                -CopyPackageTimeoutSec $CopyPackageTimeoutSec `
+                -ErrorAction Continue `
+                -ErrorVariable ProcessError
+           }
+    }
+    else
+    {
+        echo ">>>>>>> About To Start Publishing for $EventsProcessorApplicationDir [NEW]<<<<<<<<<"
+        Publish-NewServiceFabricApplication `
+            -ApplicationPackagePath "$EventsProcessorApplicationDir\pkg\$Configuration" `
+            -ApplicationParameterFilePath "$LocalDir\Profiles\DummyApplicationParameters.xml" `
+            -Action "Register" `
+            -ApplicationParameter @{} `
+            -OverwriteBehavior $OverwriteBehavior `
+            -SkipPackageValidation:$SkipPackageValidation `
+            -CopyPackageTimeoutSec $CopyPackageTimeoutSec `
+            -ErrorAction Continue `
+            -ErrorVariable ProcessError
+    }
 
-echo ">>>>>>> Finished Publish for $InsightApplicationDir <<<<<<<<<"
-echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
-echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
+    if($ProcessError)
+    {
+        echo ">>>>>>> Finished Publish for $EventsProcessorApplicationDir [WITH ERROR]<<<<<<<<<"
+        echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
+        echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
+    }
+    else
+    {
+        echo ">>>>>>> Finished Publish for $EventsProcessorApplicationDir [SUCCESS] <<<<<<<<<"
+        echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
+        echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
+    }
+}
 
+if(!$ProcessError)
+{
+    if ($ApplicationToDeploy -eq 'All'  -or $ApplicationToDeploy -eq 'Insight' )
+    {
+        if ($IsUpgrade)
+        {
+           echo ">>>>>>> About To Start Publishing for $InsightApplicationDir [UPGRADE]<<<<<<<<<"
+           echo ">>>>>>> About To Start Publishing for $EventsProcessorApplicationDir [UPGRADE]<<<<<<<<<"
+           echo ">>>>>>> Parameters <<<<<<<<<<<<"
+           echo ApplicationName=["$ApplicationInstanceToUpgrade"]
+           echo ApplicationPackagePath=["$EventsProcessorApplicationDir\pkg\$Configuration"]
+           echo ApplicationParameterFilePath=["$EventsProcessorApplicationDir\pkg\$Configuration\$ParametersfileName"]
+           echo SkipPackageValidation=[$SkipPackageValidation]
+           echo CopyPackageTimeoutSec=[$CopyPackageTimeoutSec]
+           echo ">>>>>>>>>>>>>><<<<<<<<<<<<<<<<<"
 
-echo ">>>>>>> About To Start Publishing for $AdminApplicationDir <<<<<<<<<"
+           if( $ApplicationInstanceToUpgrade )
+           {
+               Publish-UpgradedServiceFabricApplication -ApplicationName "$ApplicationInstanceToUpgrade" `
+                    -ApplicationPackagePath "$InsightApplicationDir\pkg\$Configuration" `
+                    -Action "RegisterAndUpgrade" `
+                    -SkipPackageValidation:$SkipPackageValidation `
+                    -CopyPackageTimeoutSec $CopyPackageTimeoutSec `
+                    -ErrorAction Continue `
+                    -ErrorVariable ProcessError
+           }
+           else
+           {
+               Publish-UpgradedServiceFabricApplication `
+                    -ApplicationPackagePath "$InsightApplicationDir\pkg\$Configuration" `
+                    -ApplicationParameterFilePath "$AdminApplicationDir\pkg\$Configuration\$ParametersfileName" `
+                    -Action "Register" `
+                    -SkipPackageValidation:$SkipPackageValidation `
+                    -CopyPackageTimeoutSec $CopyPackageTimeoutSec `
+                    -ErrorAction Continue `
+                    -ErrorVariable ProcessError
+           }
+        }
+        else
+        {
+            echo ">>>>>>> About To Start Publishing for $InsightApplicationDir [NEW]<<<<<<<<<"
+            Publish-NewServiceFabricApplication `
+                -ApplicationPackagePath "$InsightApplicationDir\pkg\$Configuration" `
+                -ApplicationParameterFilePath "$LocalDir\Profiles\DummyApplicationParameters.xml" `
+                -Action "Register" `
+                -ApplicationParameter @{} `
+                -OverwriteBehavior $OverwriteBehavior `
+                -SkipPackageValidation:$SkipPackageValidation `
+                -CopyPackageTimeoutSec $CopyPackageTimeoutSec `
+                -ErrorAction Continue `
+                -ErrorVariable ProcessError
+        }
+    
+        if($ProcessError)
+        {
+            echo ">>>>>>> Finished Publish for $InsightApplicationDir [WITH ERROR]<<<<<<<<<"
+            echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
+            echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
+        }
+        else
+        {
+            echo ">>>>>>> Finished Publish for $InsightApplicationDir [SUCCESS] <<<<<<<<<"
+            echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
+            echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
+        }        
+    }
+    
+    if(!$ProcessError)
+    {
+        if ($ApplicationToDeploy -eq 'All'  -or $ApplicationToDeploy -eq 'Admin' )
+        {
+            if ($IsUpgrade)
+            {
+               echo ">>>>>>> About To Start Publishing for $AdminApplicationDir [UPGRADE]<<<<<<<<<"
+               Publish-UpgradedServiceFabricApplication `
+                    -ApplicationPackagePath "$AdminApplicationDir\pkg\$Configuration" `
+                    -ApplicationParameterFilePath "$AdminApplicationDir\pkg\$Configuration\$ParametersfileName" `
+                    -Action "RegisterAndUpgrade" `
+                    -SkipPackageValidation:$SkipPackageValidation `
+                    -CopyPackageTimeoutSec $CopyPackageTimeoutSec `
+                    -ErrorAction Continue `
+                    -ErrorVariable ProcessError 
+            }
+            else
+            {
+                echo ">>>>>>> About To Start Publishing for $AdminApplicationDir [NEW]<<<<<<<<<"
+                Publish-NewServiceFabricApplication `
+                    -ApplicationPackagePath "$AdminApplicationDir\pkg\$Configuration" `
+                    -ApplicationParameterFilePath "$AdminApplicationDir\pkg\$Configuration\$ParametersfileName" `
+                    -Action "RegisterAndCreate" `
+                    -ApplicationParameter $ApplicationCreateParameters `
+                    -OverwriteBehavior $OverwriteBehavior `
+                    -SkipPackageValidation:$SkipPackageValidation `
+                    -CopyPackageTimeoutSec $CopyPackageTimeoutSec `
+                    -ErrorAction Continue `
+                    -ErrorVariable ProcessError
+            }
 
-Publish-NewServiceFabricApplication `
-    -ApplicationPackagePath "$AdminApplicationDir\pkg\$Configuration" `
-    -ApplicationParameterFilePath $ParametersfileName `
-    -Action "RegisterAndCreate" `
-    -ApplicationParameter $ApplicationParameters `
-    -OverwriteBehavior $OverwriteBehavior `
-    -SkipPackageValidation:$SkipPackageValidation `
-    -CopyPackageTimeoutSec $CopyPackageTimeoutSec `
-    -ErrorAction Stop
-
-echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
-echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
+            if($ProcessError)
+            {
+                echo ">>>>>>> Finished Publish for $AdminApplicationDir [WITH ERROR]<<<<<<<<<"
+                echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
+                echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
+            }
+            else
+            {
+                echo ">>>>>>> Finished Publish for $AdminApplicationDir [SUCCESS] <<<<<<<<<"
+                echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
+                echo ">>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<"
+            }        
+        }
+    }
+}
 
 # Remove all imported modules
 Get-Module | Remove-Module -Verbose

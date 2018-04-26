@@ -121,7 +121,7 @@
                             </tr>
                             <tr>
                                 <td></td>
-                                <td><input type="submit" value="Register and Login" /></td>
+                                <td><input id="btnRegisterAndLogin" type="submit" value="Register and Login" /></td>
                                 <td></td>
                             </tr>
                         </table>
@@ -180,7 +180,8 @@
         {
             if (loginUsername)
             {
-                $("#headerRight").html("<button id='logoutButton'>Logout</button>");
+                var htmlStr = '<button id="logoutButton" onclick="javascript:logout(event);return true;" >Logout</button>';
+                $("#headerRight").html(htmlStr);
                 $("#headerRight1").html("<b>[@ViewBag.Name]&nbsp;as @ViewBag.Persona</b>&nbsp;&nbsp;");
 
             }
@@ -191,6 +192,38 @@
                     $("#headerRight1").html("<button id='openRegisterDialog'>Register</button>");
             }
         }
+
+        // page functions
+        // validate password
+        $(function () {
+            $("#btnRegisterAndLogin").click(function () {
+                var password = $("#Password").val();
+                var confirmPassword = $("#ConfirmPassword").val();
+                if (password != confirmPassword) {
+                    alert("Passwords do not match.");
+                    return false;
+                }
+                return true;
+            });
+        });
+
+        // logout
+        function logout(event) {
+            event.preventDefault();
+            var URL = '@Url.Action("logout", "Home")';
+            $.ajax({
+                url: URL,
+                type: "GET",
+                xhrFields: {
+                    withCredentials: true
+                }
+            }).success(function (res) {
+                hide_error();
+            }).error(function (res) {
+                console.log(res);
+            });
+        }
+
     </script>
 </body>
 </html>

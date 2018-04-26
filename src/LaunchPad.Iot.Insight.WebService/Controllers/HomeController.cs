@@ -117,7 +117,6 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
         [HttpPost]
         [Route("[Controller]/login")]
-        [ValidateAntiForgeryToken]
         public ActionResult Login(UserProfile objUser)
         {
             // Manage session and Context
@@ -202,18 +201,16 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
             return View( "Index", objUser );
         }
 
-        [HttpPost]
+        [HttpGet]
         [Route("[Controller]/logout")]
-        [ValidateAntiForgeryToken]
-        public ActionResult Logout(UserProfile objUser)
+        public IActionResult Logout()
         {
+            HttpServiceUriBuilder contextUri = new HttpServiceUriBuilder().SetServiceName(this.context.ServiceName);
+
             // Manage session
-            if (ModelState.IsValid)
-            {
-                if (!HTTPHelper.IsSessionExpired(HttpContext, this))
-                    HTTPHelper.EndSession(HttpContext, this);
-            }
-            return View("Index");
+            if (!HTTPHelper.IsSessionExpired(HttpContext, this))
+                HTTPHelper.EndSession(HttpContext, this);
+            return Redirect(contextUri.GetServiceNameSiteHomePath());
         }
 
         public IActionResult About()

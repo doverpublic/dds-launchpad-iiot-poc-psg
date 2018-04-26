@@ -6,6 +6,7 @@
 namespace Launchpad.Iot.EventsProcessor.RouterService
 {
     using System;
+    using System.Collections.Generic;
     using System.Fabric;
     using System.IO;
     using System.Linq;
@@ -15,10 +16,17 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
     using System.Threading.Tasks;
 
     using Microsoft.ServiceBus;
+    using Microsoft.ServiceFabric.Services.Communication.AspNetCore;
     using Microsoft.ServiceBus.Messaging;
+    using Microsoft.ServiceFabric.Services.Communication.Runtime;
     using Microsoft.ServiceFabric.Data;
     using Microsoft.ServiceFabric.Data.Collections;
     using Microsoft.ServiceFabric.Services.Runtime;
+    using Microsoft.AspNetCore.Hosting;
+    using Microsoft.Extensions.DependencyInjection;
+
+    using Microsoft.ApplicationInsights.Extensibility;
+    using Microsoft.ApplicationInsights.ServiceFabric;
 
     using global::Iot.Common;
     using TargetSolution;
@@ -42,10 +50,53 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
         private const string OffsetDictionaryName = "OffsetDictionary";
         private const string EpochDictionaryName = "EpochDictionary";
 
-        public RouterService(StatefulServiceContext context)
-            : base(context)
+        public RouterService(StatefulServiceContext context) : base(context)
         {
         }
+  
+        protected override IEnumerable<ServiceReplicaListener> CreateServiceReplicaListeners()
+        {
+             return new ServiceReplicaListener[1]
+             {
+                 new ServiceReplicaListener(
+                     context =>
+                         new KestrelCommunicationListener(
+                             context,
+                             (url, listener) =>
+                             {
+
+                                 // The idea is to create a listening port for each instance 
+                                 // This application will never be called - the only purpose of this listener is
+                                 // to enable the sending logs to the application insigths server
+                                 // In case the port colides with another service already up and ruuning the 
+                                 // the system will restart the service until it gets a free port
+                                 Random rnd = new Random();
+
+                                 int port = rnd.Next( 20085, 20099);
+                                 string[] urlParts = url.Split(':');
+
+                                 url = urlParts[0] + ":" + urlParts[1] + ":" + port;
+
+                                 ServiceEventSource.Current.Message($"Router Service Listening on {url}");
+                                 return new WebHostBuilder()
+                                     .UseKestrel()
+                                     .ConfigureServices(
+                                         services => services
+                                             .AddSingleton<StatefulServiceContext>(this.Context)
+                                             .AddSingleton<IReliableStateManager>(this.StateManager)
+                                             .AddSingleton<ITelemetryInitializer>((serviceProvider) => FabricTelemetryInitializerExtension.CreateFabricTelemetryInitializer(context)))
+                                     .UseContentRoot(Directory.GetCurrentDirectory())
+                                     .UseServiceFabricIntegration(listener, ServiceFabricIntegrationOptions.UseUniqueServiceUrl)
+                                     //.UseStartup<Startup>()  // this service does not use the service startup
+                                     .UseApplicationInsights()
+                                     .UseUrls(url)
+                                     .Build();
+                             })
+                     )
+             };
+         
+        }
+
 
         /// <summary>
         /// This is the main entry point for your service replica.

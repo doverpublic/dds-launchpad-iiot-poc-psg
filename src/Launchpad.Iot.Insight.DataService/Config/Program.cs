@@ -6,6 +6,7 @@
 namespace Launchpad.Iot.Insight.DataService
 {
     using System.Threading;
+    using System.Diagnostics;
     using Microsoft.ServiceFabric.Services.Runtime;
 
     public class Program
@@ -17,6 +18,8 @@ namespace Launchpad.Iot.Insight.DataService
                 "DataServiceType",
                 context =>
                     new DataService(context)).GetAwaiter().GetResult();
+
+            ServiceEventSource.Current.ServiceTypeRegistered(Process.GetCurrentProcess().Id, typeof(DataService).Name);
 
             Thread.Sleep(Timeout.Infinite);
         }

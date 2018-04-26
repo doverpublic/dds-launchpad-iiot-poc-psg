@@ -20,6 +20,9 @@ namespace Launchpad.Iot.Insight.DataService
     using Microsoft.ServiceFabric.Services.Runtime;
     using Microsoft.ServiceFabric.Services.Communication.AspNetCore;
 
+    using Microsoft.ApplicationInsights.Extensibility;
+    using Microsoft.ApplicationInsights.ServiceFabric;
+
     using global::Iot.Common;
     using TargetSolution;
 
@@ -45,17 +48,18 @@ namespace Launchpad.Iot.Insight.DataService
                             context,
                             (url, listener) =>
                             {
-                                ServiceEventSource.Current.Message($"Listening on {url}");
-
+                                ServiceEventSource.Current.Message($"Data Service Listening on {url}");
                                 return new WebHostBuilder()
                                     .UseKestrel()
                                     .ConfigureServices(
                                         services => services
                                             .AddSingleton<StatefulServiceContext>(this.Context)
-                                            .AddSingleton<IReliableStateManager>(this.StateManager))
+                                            .AddSingleton<IReliableStateManager>(this.StateManager)
+                                            .AddSingleton<ITelemetryInitializer>((serviceProvider) => FabricTelemetryInitializerExtension.CreateFabricTelemetryInitializer(context)))
                                     .UseContentRoot(Directory.GetCurrentDirectory())
                                     .UseServiceFabricIntegration(listener, ServiceFabricIntegrationOptions.UseUniqueServiceUrl)
                                     .UseStartup<Startup>()
+                                    .UseApplicationInsights()
                                     .UseUrls(url)
                                     .Build();
                             })

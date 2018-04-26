@@ -22,6 +22,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="app.config" />
+    <Content Include="ApplicationPackageRoot\Default.Parameters.xml" />
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
