@@ -43,6 +43,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
         /// A lower value will save more often which can reduce repeat message processing at the cost of performance.
         /// </summary>
         private const int OffsetInterval = 5;
+        private string ServiceUniqueId = FnvHash.GetUniqueId();
 
         /// <summary>
         /// Names of the dictionaries that hold the current offset value and partition epoch.
@@ -69,11 +70,10 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                                  // The idea is to create a listening port for each instance 
                                  // This application will never be called - the only purpose of this listener is
 
-                                 string serviceId = FnvHash.GetUniqueId();
-
-                                 url += $"/eventsprocessor/{serviceId}";
+                                 url += $"/eventsprocessor/{ServiceUniqueId}";
 
                                  ServiceEventSource.Current.Message( "Router Service Initialized on " + url + " - Dummy url not to be used" );
+
                                  return new WebHostBuilder()
                                      .UseWebListener()
                                      .ConfigureServices(
@@ -139,25 +139,29 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
 
             try
             {
-                // Get an EventHubReceiver and the MessagingFactory used to create it.
-                // The EventHubReceiver is used to get events from IoT Hub.
-                // The MessagingFactory is just saved for later so it can be closed before RunAsync exits.
-                Tuple<EventHubReceiver, MessagingFactory> iotHubInfo =
-                    await this.ConnectToIoTHubAsync(iotHubConnectionString, servicePartitionKey, epochDictionary, offsetDictionary, iotHubProcessOnlyFutureEvents);
-
-                eventHubReceiver = iotHubInfo.Item1;
-                messagingFactory = iotHubInfo.Item2;
-
                 // HttpClient is designed as a shared object.
                 // A single instance should be used throughout the lifetime of RunAsync.
                 using (HttpClient httpClient = new HttpClient(new HttpServiceClientHandler()))
                 {
 
                     int offsetIteration = 0;
+                    bool IsConnected = false;
 
                     while (true)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
+
+                        if( !IsConnected )
+                        {
+                            // Get an EventHubReceiver and the MessagingFactory used to create it.
+                            // The EventHubReceiver is used to get events from IoT Hub.
+                            // The MessagingFactory is just saved for later so it can be closed before RunAsync exits.
+                            Tuple<EventHubReceiver, MessagingFactory> iotHubInfo = await this.ConnectToIoTHubAsync(iotHubConnectionString, servicePartitionKey, epochDictionary, offsetDictionary, iotHubProcessOnlyFutureEvents);
+                            eventHubReceiver = iotHubInfo.Item1;
+                            messagingFactory = iotHubInfo.Item2;
+
+                            IsConnected = true;
+                        }
 
                         Uri postUrl = null;
 
@@ -171,14 +175,13 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                             {
                                 if (eventData == null)
                                 {
-                                    ServiceEventSource.Current.ServiceMessage( this.Context, "RouterService - RunAsync - No event data available on hub '{0}'",
-                                                                                eventHubReceiver.Name );
+                                    ServiceEventSource.Current.ServiceMessage( this.Context, $"RouterService - {ServiceUniqueId} - RunAsync - No event data available on hub '{eventHubReceiver.Name}'");
+                                    await Task.Delay(global::Iot.Common.Names.IoTHubRetryWaitIntervalsInMills);
                                     continue;
                                 }
                                 else
                                 {
-                                    ServiceEventSource.Current.ServiceMessage( this.Context, "RouterService - RunAsync - Received event data from hub '{0}' - Partition '{1}' Sequence # '{2}'",
-                                                                                eventHubReceiver.Name, eventData.PartitionKey, eventData.SequenceNumber );
+                                    ServiceEventSource.Current.ServiceMessage( this.Context, $"RouterService - {ServiceUniqueId} - RunAsync - Received event data from hub '{eventHubReceiver.Name}' - Partition '{eventData.PartitionKey}' Sequence # '{eventData.SequenceNumber}'");
                                 }
 
                                 string targetSite = (string)eventData.Properties[global::Iot.Common.Names.EventKeyFieldTargetSite];
@@ -192,8 +195,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                                 Uri targetSiteServiceName = new Uri($"{prefix}/{targetSite}/{serviceName}");
                                 long targetSiteServicePartitionKey = FnvHash.Hash(deviceId);
 
-                                ServiceEventSource.Current.ServiceMessage(this.Context, "RouterService - RunAsync - About to post data to Insight Data Service from device '{0}' to target site '{1}' - partitionKey '{2}' - serviceName '{3}'",
-                                                                            deviceId, targetSite, targetSiteServicePartitionKey, targetSiteServiceName );
+                                ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - {ServiceUniqueId} - RunAsync - About to post data to Insight Data Service from device '{deviceId}' to target site '{targetSite}' - partitionKey '{targetSiteServicePartitionKey}' - Target Service Name '{targetSiteServiceName}'");
 
                                 // The target site data service exposes an HTTP API.
                                 // For incoming device events, the URL is /api/events/{deviceId}
@@ -204,8 +206,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                                         .SetServicePathAndQuery($"/api/events/{deviceId}")
                                         .Build();
 
-                                ServiceEventSource.Current.ServiceMessage(this.Context, "RouterService - RunAsync - Ready to post data to Insight Data Service from device '{0}' to taget site '{1}' - partitionKey '{2}' - serviceName '{3}' - url '{4}'",
-                                                                            deviceId, targetSite, targetSiteServicePartitionKey, targetSiteServiceName, postUrl.PathAndQuery );
+                                ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - {ServiceUniqueId} - RunAsync - Ready to post data to Insight Data Service from device '{deviceId}' to taget site '{targetSite}' - partitionKey '{targetSiteServicePartitionKey}' - Target Service Name '{targetSiteServiceName}' - url '{postUrl.PathAndQuery}'" );
 
                                 // The device stream payload isn't deserialized and buffered in memory here.
                                 // Instead, we just can just hook the incoming stream from Iot Hub right into the HTTP request stream.
@@ -219,10 +220,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
 
                                         ServiceEventSource.Current.ServiceMessage(
                                             this.Context,
-                                            "RouterService - RunAsync - Sent event data to insight service '{0}' with partition key '{1}'. Result: {2}",
-                                            targetSiteServiceName,
-                                            targetSiteServicePartitionKey,
-                                            response.StatusCode.ToString());
+                                            $"RouterService - {ServiceUniqueId} - RunAsync - Sent event data to insight service '{targetSiteServiceName}' with partition key '{targetSiteServicePartitionKey}'. Result: {response.StatusCode.ToString()}");
 
                                         if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
                                         {
@@ -236,10 +234,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
 
                                             ServiceEventSource.Current.ServiceMessage(
                                                 this.Context,
-                                                "RouterService - RunAsync - Insight service '{0}' returned HTTP 400 due to a bad device message from device '{1}'. Error message: '{2}'",
-                                                targetSiteServiceName,
-                                                deviceId,
-                                                responseContent);
+                                                $"RouterService - {ServiceUniqueId} - RunAsync - Insight service '{targetSiteServiceName}' returned HTTP 400 due to a bad device message from device '{deviceId}'. Error message: '{responseContent}'");
                                         }
                                     }
                                 }
@@ -252,8 +247,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                                 {
                                     ServiceEventSource.Current.ServiceMessage(
                                             this.Context,
-                                            "RouterService - RunAsync - Saving offset {0}",
-                                            eventData.Offset);
+                                            $"RouterService - {ServiceUniqueId} - RunAsync - Saving offset {eventData.Offset}" );
 
                                     using (ITransaction tx = this.StateManager.CreateTransaction())
                                     {
@@ -265,26 +259,33 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                                 }
                             }
                         }
+                        catch (Microsoft.ServiceBus.Messaging.ReceiverDisconnectedException rde)
+                        {
+                            // transient error. Retry.
+                            ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - {ServiceUniqueId} - RunAsync - Receiver Disconnected Exception in RunAsync: {rde.ToString()}");
+
+                            IsConnected = false;
+                        }
                         catch (TimeoutException te)
                         {
                             // transient error. Retry.
-                            ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - RunAsync - TimeoutException in RunAsync: {te.ToString()}");
+                            ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - {ServiceUniqueId} - RunAsync - TimeoutException in RunAsync: {te.ToString()}");
                         }
                         catch (FabricTransientException fte)
                         {
                             // transient error. Retry.
-                            ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - RunAsync - FabricTransientException in RunAsync: {fte.ToString()}");
+                            ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - {ServiceUniqueId} - RunAsync - FabricTransientException in RunAsync: {fte.ToString()}");
                         }
                         catch (FabricNotPrimaryException fnpe)
                         {
-                            ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - RunAsync - FabricNotPrimaryException Exception - Message=[{0}]", fnpe );
+                            ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - {ServiceUniqueId} - RunAsync - FabricNotPrimaryException Exception - Message=[{fnpe}]" );
 
                             // not primary any more, time to quit.
                             return;
                         }
                         catch (Exception ex)
                         {
-                            ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - RunAsync - General Exception Url=[{0}]- Message=[{1}]", postUrl==null?"Url undefined":postUrl.ToString(), ex);
+                            ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - {ServiceUniqueId} - RunAsync - General Exception Url=[{0}]- Message=[{1}]", postUrl==null?"Url undefined":postUrl.ToString(), ex);
                         }
                     }
                 }
@@ -321,7 +322,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
 
             ServiceEventSource.Current.ServiceMessage(
                       this.Context,
-                      "RouterService - ConnectToIoTHubAsync - connecting to IoT Hub at {0}",
+                      $"RouterService - {ServiceUniqueId} - ConnectToIoTHubAsync - connecting to IoT Hub at {0}",
                       String.Join(",", connectionStringBuilder.Endpoints.Select(x => x.ToString())));
 
             // A new MessagingFactory is created here so that each partition of this service will have its own MessagingFactory.
@@ -358,9 +359,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                             // continue where the service left off before the last failover or restart.
                             ServiceEventSource.Current.ServiceMessage(
                                 this.Context,
-                                "RouterService - ConnectToIoTHubAsync -Creating EventHub listener on partition {0} with offset {1}",
-                                eventHubPartitionId,
-                                offsetResult.Value);
+                                $"RouterService - {ServiceUniqueId} - ConnectToIoTHubAsync -Creating EventHub listener on partition {eventHubPartitionId} with offset {offsetResult.Value}");
 
                             eventHubReceiver = await eventHubClient.GetDefaultConsumerGroup().CreateReceiverAsync(eventHubPartitionId, offsetResult.Value, newEpoch);
                         }
@@ -370,9 +369,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                             // start with the current time.
                             ServiceEventSource.Current.ServiceMessage(
                                 this.Context,
-                                "RouterService - ConnectToIoTHubAsync - Creating EventHub listener on partition {0} with offset {1} - Starting service",
-                                eventHubPartitionId,
-                                DateTime.UtcNow);
+                                $"RouterService - {ServiceUniqueId} - ConnectToIoTHubAsync - Creating EventHub listener on partition {eventHubPartitionId} with offset time now{DateTime.UtcNow} - Starting service" );
 
                             if (processOnlyFutureEvents.Equals("yes"))
                             {
@@ -399,33 +396,27 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                 catch (TimeoutException te)
                 {
                     // transient error. Retry.
-                    ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - ConnectToIoTHubAsync - TimeoutException Retry Count#{retryCount} : Message=[{te.ToString()}]");
+                    ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - {ServiceUniqueId} - ConnectToIoTHubAsync - TimeoutException Retry Count#{retryCount} : Message=[{te.ToString()}]");
 
-                    if(global::Iot.Common.Names.TransactionsRetryCount < retryCount )
-                    {
-                        retryCount = 0;
-                    }
-                    else
-                    {
-                        retryCount++;
-                        await Task.Delay(global::Iot.Common.Names.TransactionRetryWaitIntervalInMills);
-                    }
                     retryCount++;
-
+                    await Task.Delay(global::Iot.Common.Names.IoTHubRetryWaitIntervalsInMills);
                 }
                 catch (FabricTransientException fte)
                 {
                     // transient error. Retry.
-                    ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - ConnectToIoTHubAsync - FabricTransientException : Message=[{fte.ToString()}]");
+                    ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - {ServiceUniqueId} - ConnectToIoTHubAsync - FabricTransientException : Message=[{fte.ToString()}]");
+
+                    retryCount++;
+                    await Task.Delay(global::Iot.Common.Names.IoTHubRetryWaitIntervalsInMills);
                 }
                 catch (FabricNotPrimaryException fnpe)
                 {
-                    ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - ConnectToIoTHubAsync - FabricNotPrimaryException Exception - Message=[{0}]", fnpe);
+                    ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - {ServiceUniqueId} - ConnectToIoTHubAsync - FabricNotPrimaryException Exception - Message=[{fnpe}]" );
                     retryCount = 0;
                 }
                 catch (Exception ex)
                 {
-                    ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - ConnectToIoTHubAsync - General Exception - Message=[{0}]",  ex);
+                    ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - {ServiceUniqueId} - ConnectToIoTHubAsync - General Exception - Message=[{ex}]");
                     retryCount = 0;
                 }
             }

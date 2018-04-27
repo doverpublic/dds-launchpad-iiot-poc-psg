@@ -49,6 +49,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
         private static readonly string ApiUrl = appSettings["apiUrl"];
         private static readonly string GroupId = appSettings["groupId"];
         private static readonly string ReportId = appSettings["reportId"];
+        private static readonly string DatasetId = appSettings["datasetId"];
 
 
         public HomeController(StatelessServiceContext context, FabricClient fabricClient, HttpClient httpClient, IApplicationLifetime appLifetime )
@@ -324,10 +325,31 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                         return result;
                     }
 
-                    // Generate Embed Configuration.
-                    result.EmbedToken = tokenResponse;
-                    result.EmbedUrl = report.EmbedUrl;
-                    result.Id = report.Id;
+                    // Now it is time to refresh the data set
+
+                    string reportUrl = $"https://api.powerbi.com/v1.0/myorg/groups/{GroupId}/datasets/{DatasetId}/refreshes";
+
+                    var map = new Dictionary<string, string>();
+
+                    Dictionary<string, IEnumerable<string>> additionalHeaders = new Dictionary<string, IEnumerable<string>>();
+                    List<string> authorizationTokenList = new List<string>();
+
+                    authorizationTokenList.Add("Bearer " + authenticationResult.AccessToken);
+                    additionalHeaders.Add("Authorization", authorizationTokenList);
+
+                    Task<bool> refreshDataresult = ExecutePOSTBasic(reportUrl, null, this.httpClient, this.fabricClient, this.appLifetime, additionalHeaders);
+
+                    if (refreshDataresult.Result)
+                    {
+                        // Generate Embed Configuration.
+                        result.EmbedToken = tokenResponse;
+                        result.EmbedUrl = report.EmbedUrl;
+                        result.Id = report.Id;
+                    }
+                    else
+                    {
+                        ViewBag.Message = "Error during new user registration";
+                    }
 
                     return result;
                 }
@@ -461,6 +483,54 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                 }
             }
 
+            return bRet;
+        }
+
+        private async Task<bool> ExecutePOSTBasic(String postUrl, object bodyObject, HttpClient httpClient, FabricClient fabricClient, IApplicationLifetime appLifetime, IEnumerable<KeyValuePair<string, IEnumerable<string>>> additionalHeaders = null )
+        {
+            bool bRet = false;
+
+            StreamContent postContent = null;
+
+            if ( bodyObject != null )
+            {
+                string jsonStr = JsonConvert.SerializeObject(bodyObject);
+                MemoryStream mStrm = new MemoryStream(Encoding.UTF8.GetBytes(jsonStr));
+                postContent = new StreamContent(mStrm);
+                postContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+            }
+            else
+            {
+                MemoryStream mStrm = new MemoryStream();
+                postContent = new StreamContent(mStrm);
+                postContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+            }
+
+            if( additionalHeaders != null )
+            {
+                foreach(KeyValuePair<string, IEnumerable<string>> item in additionalHeaders )
+                {
+                    postContent.Headers.Add(item.Key, item.Value);
+                }
+            }
+
+            HttpResponseMessage response = await httpClient.PostAsync(postUrl, postContent, appLifetime.ApplicationStopping);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+            {
+                // This service expects the receiving target site service to return HTTP 400 if the device message was malformed.
+                // In this example, the message is simply logged.
+                // Your application should handle all possible error status codes from the receiving service
+                // and treat the message as a "poison" message.
+                // Message processing should be allowed to continue after a poison message is detected.
+
+                string responseContent = await response.Content.ReadAsStringAsync();
+            }
+            else
+            {
+                bRet = true;
+            }
+ 
             return bRet;
         }
     }

@@ -33,5 +33,7 @@ namespace Iot.Common
 
         public const int TransactionsRetryCount = 20;
         public const int TransactionRetryWaitIntervalInMills = 200;
+
+        public const int IoTHubRetryWaitIntervalsInMills = 60000;
     }
 }
