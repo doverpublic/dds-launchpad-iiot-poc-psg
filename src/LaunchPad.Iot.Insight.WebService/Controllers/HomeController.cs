@@ -334,7 +334,8 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                     Dictionary<string, IEnumerable<string>> additionalHeaders = new Dictionary<string, IEnumerable<string>>();
                     List<string> authorizationTokenList = new List<string>();
 
-                    authorizationTokenList.Add("Bearer " + authenticationResult.AccessToken);
+                    authorizationTokenList.Add("Bearer");
+                    authorizationTokenList.Add(authenticationResult.AccessToken);
                     additionalHeaders.Add("Authorization", authorizationTokenList);
 
                     Task<bool> refreshDataresult = ExecutePOSTBasic(reportUrl, null, this.httpClient, this.fabricClient, this.appLifetime, additionalHeaders);
@@ -490,19 +491,26 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
         {
             bool bRet = false;
 
-            StreamContent postContent = null;
+            HttpContent postContent = null;
 
             if ( bodyObject != null )
             {
                 string jsonStr = JsonConvert.SerializeObject(bodyObject);
-                MemoryStream mStrm = new MemoryStream(Encoding.UTF8.GetBytes(jsonStr));
-                postContent = new StreamContent(mStrm);
+
+                if( jsonStr.Length > 0 )
+                {
+                    MemoryStream mStrm = new MemoryStream(Encoding.UTF8.GetBytes(jsonStr));
+                    postContent = new StreamContent(mStrm);
+                }
+                else
+                {
+                    postContent = new StringContent("");
+                }
                 postContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
             }
             else
-            {
-                MemoryStream mStrm = new MemoryStream();
-                postContent = new StreamContent(mStrm);
+            { 
+                postContent = new StringContent("");
                 postContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
             }
 
@@ -510,7 +518,35 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
             {
                 foreach(KeyValuePair<string, IEnumerable<string>> item in additionalHeaders )
                 {
-                    postContent.Headers.Add(item.Key, item.Value);
+                    if( item.Key.Equals("Authorization"))
+                    {
+                        string scheme = "Bearer";
+                        string parameter = "";
+                        int counter = 0;
+                        foreach( string value in item.Value )
+                        {
+                            if (counter == 0)
+                                scheme = value;
+                            if (counter == 1)
+                                parameter = value;
+                            counter++;
+                        }
+
+                        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue( scheme, parameter);
+                    }
+                    else
+                    {
+                        if( item.Value.Count() > 1 )
+                        {
+                            httpClient.DefaultRequestHeaders.Add(item.Key, item.Value);
+                        }
+                        else
+                        {
+                            string value = item.Value.FirstOrDefault();
+
+                            httpClient.DefaultRequestHeaders.Add(item.Key, value);
+                        }
+                    }
                 }
             }
 
