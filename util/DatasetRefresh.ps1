@@ -91,8 +91,6 @@ $authHeader = @{
    'Authorization'= $authorizationHeader 
 }
 
-$bodyContent = '{"name": "DeviceMessage","columns":[{"name": "DeviceId","dataType": "string"},{"name": "Message","dataType": "string"}]}'
-
 # properly format groups path
 $groupsPath = ""
 if ($groupID -eq "me") {
@@ -102,5 +100,10 @@ if ($groupID -eq "me") {
 }
 
 # Refresh the dataset
-$uri = "https://api.powerbi.com/v1.0/$groupsPath/datasets/$datasetID/tables/DeviceMessage"
-Invoke-RestMethod -Uri $uri –Headers $authHeader –Method POST -Body $bodyContent –Verbose
+$uri = "https://api.powerbi.com/v1.0/$groupsPath/datasets/$datasetID/refreshes"
+Invoke-RestMethod -Uri $uri –Headers $authHeader –Method POST –Verbose
+
+# Check the refresh history
+$uri = "https://api.powerbi.com/v1.0/$groupsPath/datasets/$datasetID/refreshes"
+Invoke-RestMethod -Uri $uri –Headers $authHeader –Method GET –Verbose
+

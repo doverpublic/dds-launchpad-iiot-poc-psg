@@ -53,17 +53,14 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
             {
                 ServiceEventSource.Current.ServiceMessage(
                     this.context,
-                    "Data Service Received Bad Request from device {0}",
-                    deviceId);
+                    $"Data Service Received Bad Request from device {deviceId}");
 
                 return this.BadRequest();
             }
 
             ServiceEventSource.Current.ServiceMessage(
                 this.context,
-                "Data Service Received {0} events from device {1}",
-                events.Count(),
-                deviceId);
+                $"Data Service Received {events.Count()} events from device {deviceId}");
 
             DeviceEvent evt = events.FirstOrDefault();
 
@@ -78,6 +75,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
             IReliableDictionary<DateTimeOffset, DeviceEventSeries> storeCompletedMessages = await this.stateManager.GetOrAddAsync<IReliableDictionary<DateTimeOffset, DeviceEventSeries>>(TargetSolution.Names.EventHistoryDictionaryName);
             IReliableDictionary<string, EdgeDevice> storeDeviceCounters = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, EdgeDevice>>(TargetSolution.Names.EventCountsDictionaryName);
 
+            string transactionType = "";
             try
             {
                 int retryCounter = 1;
@@ -86,10 +84,12 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
 
                 while (retryCounter > 0)
                 {
+                    transactionType = "";
                     using (ITransaction tx = this.stateManager.CreateTransaction())
                     {
                         try
                         {
+                            transactionType = "In Progress Message";
                             await storeInProgressMessage.AddOrUpdateAsync(
                                     tx,
                                     deviceId,
@@ -121,6 +121,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                                     }
                                     else
                                     {
+                                        transactionType = "Completed Message";
                                         await storeCompletedMessages.AddOrUpdateAsync(
                                             tx,
                                             completedMessage.Timestamp,
@@ -134,6 +135,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                                 }
                                 device.AddEventCount();
 
+                                transactionType = "Device Counters";
                                 await storeDeviceCounters.AddOrUpdateAsync(
                                     tx,
                                     deviceId,
@@ -142,11 +144,10 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                                     {
                                         return device;
                                     });
+
                                 ServiceEventSource.Current.ServiceMessage(
                                     this.context,
-                                    "Data Service Received {0} events from device {1} - Message completed",
-                                    events.Count(),
-                                    deviceId);
+                                    $"Data Service Received {events.Count()} events from device {deviceId} - Message completed");
                                 retryCounter = 0;
                                 await tx.CommitAsync();
                             }
@@ -158,26 +159,20 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                         }
                         catch (TimeoutException tex)
                         {
-                            if(global::Iot.Common.Names.TransactionsRetryCount < retryCounter)
+                            if(global::Iot.Common.Names.TransactionsRetryCount > retryCounter)
                             {
                                 ServiceEventSource.Current.ServiceMessage(
                                     this.context,
-                                    "Data Service Timeout Exception when saving data from device {0} - Iteration #{1} - Message-[{2}]",
-                                    deviceId,
-                                    retryCounter,
-                                    tex);
+                                    $"Data Service Timeout Exception when saving [{transactionType}] data from device {deviceId} - Iteration #{retryCounter} - Message-[{tex}]");
 
-                                await Task.Delay(100);
+                                await Task.Delay(global::Iot.Common.Names.TransactionRetryWaitIntervalInMills * (int)Math.Pow(2,retryCounter));
                                 retryCounter++;
                             }
                             else
                             {
                                 ServiceEventSource.Current.ServiceMessage(
                                     this.context,
-                                    "Data Service Timeout Exception when saving data from device {0} - Iteration #{1} - Transaction Aborted - Message-[{2}]",
-                                    deviceId,
-                                    retryCounter,
-                                    tex);
+                                    $"Data Service Timeout Exception when saving [{transactionType}] data from device {deviceId} - Iteration #{retryCounter} - Transaction Aborted - Message-[{tex}]");
 
                                 resultRet = this.BadRequest();
                                 retryCounter = 0;
@@ -190,9 +185,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
             {
                 ServiceEventSource.Current.ServiceMessage(
                     this.context,
-                    "Data Service Exception when saving data from device {0} - Message-[{1}]",
-                    deviceId,
-                    ex);
+                    $"Data Service Exception when saving [{transactionType}] data from device {deviceId} - Message-[{ex}]");
                 resultRet = this.BadRequest();
             }
 

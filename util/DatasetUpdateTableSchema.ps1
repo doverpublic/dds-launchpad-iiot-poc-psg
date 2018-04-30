@@ -87,7 +87,6 @@ $authorizationHeader = $authenticationResult.AccessTokenType + " " + $authentica
  
 # Building Rest API header with authorization token
 $authHeader = @{
-   'Content-Type'='application/json'
    'Authorization'= $authorizationHeader 
 }
 
@@ -101,6 +100,10 @@ if ($groupID -eq "me") {
     $groupsPath = "myorg/groups/$groupID"
 }
 
+
+$contentType = "application/json"
+$bodyJson = $bodyContent | ConvertTo-Json;
+
 # Refresh the dataset
 $uri = "https://api.powerbi.com/v1.0/$groupsPath/datasets/$datasetID/tables/DeviceMessage"
-Invoke-RestMethod -Uri $uri –Headers $authHeader –Method POST -Body $bodyContent –Verbose
+Invoke-RestMethod -Uri $uri -ContentType $contentType –Headers $authHeader –Method PUT -Body $bodyJson –Verbose

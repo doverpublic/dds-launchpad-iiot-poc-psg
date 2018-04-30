@@ -22,6 +22,5 @@ namespace TargetSolution
         public const long DataOffloadBatchIntervalInSeconds = 600;   // this application is not doing any data offload - this timer is only a placehoder;
         public const int DataOffloadBatchSize = 100;
         public const int DataDrainIteration = 5;
-
     }
 }

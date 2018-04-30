@@ -50,7 +50,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
         private static readonly string GroupId = appSettings["groupId"];
         private static readonly string ReportId = appSettings["reportId"];
         private static readonly string DatasetId = appSettings["datasetId"];
-
+        private static readonly string PushURL = "https://api.powerbi.com/beta/3d2d2b6f-061a-48b6-b4b3-9312d687e3a1/datasets/ac227ec0-5bfe-4184-85b1-a9643778f1e4/rows?key=zrg4K1om2l4mj97GF6T3p0ze3SlyynHWYRQMdUUSC0BWetzC7bF3RZgPMG4ukznAhGub5aPsDXuQMq540X8hZA%3D%3D";
 
         public HomeController(StatelessServiceContext context, FabricClient fabricClient, HttpClient httpClient, IApplicationLifetime appLifetime )
         {
@@ -106,7 +106,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                 this.ViewData["PageTitle"] = "Report";
                 this.ViewData["HeaderTitle"] = "Last Posted Events";
 
-                EmbedConfig task = await EmbedReportConfigData();
+                EmbedConfig task = await EmbedReportConfigData(reportParm);
                 this.ViewData["EmbedToken"] = task.EmbedToken.Token;
                 this.ViewData["EmbedURL"] = task.EmbedUrl;
                 this.ViewData["EmbedId"] = task.Id;
@@ -241,7 +241,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
 
         // PRIVATE METHODS
-        private async Task<EmbedConfig> EmbedReportConfigData()
+        private async Task<EmbedConfig> EmbedReportConfigData(string reportParm)
         {
             var result = new EmbedConfig();
             var username = "";
@@ -321,26 +321,18 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
                     if (tokenResponse == null)
                     {
-                        result.ErrorMessage = "Failed to generate embed token.";
+                        ServiceEventSource.Current.ServiceMessage(this.context, $"Embed Report - Error during user authentication for report - Result=[{tokenResponse.ToString()}]");
+                        result.ErrorMessage = "Failed to authenticate user for report request";
+                        ViewBag.Message = "Failed to authenticate user for report request";
                         return result;
                     }
 
                     // Now it is time to refresh the data set
 
-                    string reportUrl = $"https://api.powerbi.com/v1.0/myorg/groups/{GroupId}/datasets/{DatasetId}/refreshes";
 
-                    var map = new Dictionary<string, string>();
+                    var refreshDataresult = await PublishReportDataFor(reportParm, httpClient, fabricClient, appLifetime);
 
-                    Dictionary<string, IEnumerable<string>> additionalHeaders = new Dictionary<string, IEnumerable<string>>();
-                    List<string> authorizationTokenList = new List<string>();
-
-                    authorizationTokenList.Add("Bearer");
-                    authorizationTokenList.Add(authenticationResult.AccessToken);
-                    additionalHeaders.Add("Authorization", authorizationTokenList);
-
-                    Task<bool> refreshDataresult = ExecutePOSTBasic(reportUrl, null, this.httpClient, this.fabricClient, this.appLifetime, additionalHeaders);
-
-                    if (refreshDataresult.Result)
+                    if (refreshDataresult)
                     {
                         // Generate Embed Configuration.
                         result.EmbedToken = tokenResponse;
@@ -349,7 +341,9 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                     }
                     else
                     {
-                        ViewBag.Message = "Error during new user registration";
+                        ServiceEventSource.Current.ServiceMessage(this.context, $"Embed Report - Error during the data report refresh - Result=[{refreshDataresult.ToString()}]");
+                        result.ErrorMessage = "Error during reporting data refresh";
+                        ViewBag.Message = "Error during new report refresh";
                     }
 
                     return result;
@@ -357,7 +351,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
             }
             catch (HttpOperationException exc)
             {
-                result.ErrorMessage = string.Format("Status: {0} ({1})\r\nResponse: {2}\r\nRequestId: {3}", exc.Response.StatusCode, (int)exc.Response.StatusCode, exc.Response.Content, exc.Response.Headers["RequestId"].FirstOrDefault());
+                result.ErrorMessage = string.Format($"Status: {exc.Response.StatusCode} Response Content: [{exc.Response.Content}] RequestId: {exc.Response.Headers["RequestId"].FirstOrDefault()}");
             }
             catch (Exception exc)
             {
@@ -476,7 +470,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
                     string responseContent = await response.Content.ReadAsStringAsync();
 
-                    Debug.WriteLine("On Execute POST for entity[" + entityName + "] request[" + servicePathAndQuery + "] result=[" + responseContent + "]");
+                    ServiceEventSource.Current.ServiceMessage(this.context, $"On Execute POST for entity[" + entityName + "] request[" + servicePathAndQuery + "] result=[" + responseContent + "]");
                 }
                 else
                 {
@@ -567,6 +561,98 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                 bRet = true;
             }
  
+            return bRet;
+        }
+
+        private async Task<bool> PublishReportDataFor( string deviceId, HttpClient httpClient, FabricClient fabricClient, IApplicationLifetime appLifetime )
+        {
+            bool bRet = false;
+
+            List<DeviceViewModelList> deviceViewModelList =  await DevicesController.GetDevicesDataAsync(deviceId, this.httpClient, this.fabricClient, this.appLifetime);
+
+            if( deviceViewModelList.Count > 0 )
+            {
+                DateTimeOffset timestampGroup = DateTimeOffset.UtcNow;
+                DateTimeOffset timestamp = timestampGroup;
+                bool firstItem = true;
+                List<DeviceReportModel> messages = new List<DeviceReportModel>();
+
+                foreach (DeviceViewModelList deviceModel in deviceViewModelList )
+                {
+                    string devId = deviceModel.DeviceId;
+                    IEnumerable<DeviceViewModel> evts = deviceModel.Events;
+                    int batteryLevel = 0;
+                    int batteryVoltage = 0;
+                    int batteryMax = 4000;
+                    int batteryMin = 0;
+                    int batteryTarget = 3200;
+                    int batteryPercentage = 0;
+                    int batteryPercentageMax = 100;
+                    int batteryPercentageMin = 0;
+                    int batteryPercentageTarget = 15;
+                    int temperature = 0;
+                    int temperatureMax = 200;
+                    int temperatureMin = -55;
+                    int temperatureTarget = 55;
+                    int dataPointsCount = 0;
+                    string measurementType = "";
+                    int sensorIndex = 0;
+                    int frequency = 0;
+                    int magnitude = 0;
+
+                    foreach (DeviceViewModel sensorMessage in evts)
+                    {
+                        if( firstItem )
+                        {
+                            batteryLevel = sensorMessage.BatteryLevel;
+                            timestamp = sensorMessage.Timestamp;
+                            measurementType = sensorMessage.MeasurementType;
+                            dataPointsCount = sensorMessage.DataPointsCount;
+                            sensorIndex = sensorMessage.SensorIndex;
+
+                            firstItem = false;
+                        }
+
+                        for(int index = 0; index < sensorMessage.Frequency.Length; index++ )
+                        {
+                            frequency = sensorMessage.Frequency[index];
+                            magnitude = sensorMessage.Magnitude[index];
+
+                            messages.Add(new DeviceReportModel(timestampGroup,
+                                    timestamp,
+                                    devId,
+                                    batteryLevel,
+                                    batteryVoltage,
+                                    batteryMax,
+                                    batteryMin,
+                                    batteryTarget,
+                                    batteryPercentage,
+                                    batteryPercentageMax,
+                                    batteryPercentageMin,
+                                    batteryPercentageTarget,
+                                    temperature,
+                                    temperatureMax,
+                                    temperatureMin,
+                                    temperatureTarget,
+                                    dataPointsCount,
+                                    measurementType,
+                                    sensorIndex,
+                                    frequency,
+                                    magnitude)
+                             );  
+                        }
+                    }
+
+                    bRet = await ExecutePOSTBasic(PushURL, messages, httpClient, fabricClient, appLifetime );
+
+                    if(!bRet)
+                    {
+                        ServiceEventSource.Current.ServiceMessage(this.context, $"Embed Report - Error during data push for report data");
+                        break;
+                    }
+                }
+            }
+
             return bRet;
         }
     }

@@ -169,7 +169,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                         // transient error. Could Retry if one desires .
                         ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - CreateEntity(Save) - TimeoutException : Retry Count#{retryCount}: Message=[{te.ToString()}]");
 
-                        if(global::Iot.Common.Names.TransactionsRetryCount < retryCount )
+                        if(global::Iot.Common.Names.TransactionsRetryCount > retryCount )
                         {
                             retryCount = 0;
                         }
@@ -177,7 +177,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                         {
                             retryCount++;
 
-                            await Task.Delay(global::Iot.Common.Names.TransactionRetryWaitIntervalInMills);
+                            await Task.Delay(global::Iot.Common.Names.TransactionRetryWaitIntervalInMills * (int)Math.Pow(2,retryCount));
                         }
                     }
                     catch (Exception ex)

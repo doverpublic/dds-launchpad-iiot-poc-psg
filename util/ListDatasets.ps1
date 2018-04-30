@@ -19,7 +19,7 @@
 # app.powerbi.com/groups/{groupID}/settings/datasets/{datasetID} 
 
 $groupID = "dc6d9dce-24d1-49e1-8770-0ea791e02fe8" # the ID of the group that hosts the dataset. Use "me" if this is your My Workspace
-$datasetID = "08b628a8-5c94-4ab6-94f9-5090ff54660b" # the ID of the dataset that hosts the dataset
+$datasetID = "NA" # the ID of the dataset that hosts the dataset
 
 # AAD Client ID
 # To get this, go to the following page and follow the steps to provision an app

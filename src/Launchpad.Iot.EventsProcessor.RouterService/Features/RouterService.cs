@@ -42,7 +42,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
         /// The offset interval specifies how frequently the offset is saved.
         /// A lower value will save more often which can reduce repeat message processing at the cost of performance.
         /// </summary>
-        private const int OffsetInterval = 5;
+        private const int OffsetInterval = global::Iot.Common.Names.EventsProcessorOffsetInterval;
         private string ServiceUniqueId = FnvHash.GetUniqueId();
 
         /// <summary>
@@ -285,7 +285,8 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                         }
                         catch (Exception ex)
                         {
-                            ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - {ServiceUniqueId} - RunAsync - General Exception Url=[{0}]- Message=[{1}]", postUrl==null?"Url undefined":postUrl.ToString(), ex);
+                            string url = postUrl == null ? "Url undefined" : postUrl.ToString();
+                            ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - {ServiceUniqueId} - RunAsync - General Exception Url=[{url}]- Message=[{ex}] - Inner Exception=[{ex.InnerException}] Call Stack=[{ex.StackTrace}] - Stack trace of inner exception=[{ex.InnerException.StackTrace}]");
                         }
                     }
                 }

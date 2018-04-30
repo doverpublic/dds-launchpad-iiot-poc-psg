@@ -19,7 +19,7 @@
 # app.powerbi.com/groups/{groupID}/settings/datasets/{datasetID} 
 
 $groupID = "dc6d9dce-24d1-49e1-8770-0ea791e02fe8" # the ID of the group that hosts the dataset. Use "me" if this is your My Workspace
-$datasetID = "a9dcd4e0-9dec-47ab-85a8-6e0c7458b6c1" # the ID of the dataset that hosts the dataset
+$datasetID = "08b628a8-5c94-4ab6-94f9-5090ff54660b" # the ID of the dataset that hosts the dataset
 
 # AAD Client ID
 # To get this, go to the following page and follow the steps to provision an app
@@ -79,7 +79,6 @@ echo "   TenantId=$($authenticationResult.TenantId)"
 echo "   TokenId=$($authenticationResult.IdToken)"
 echo "   Token=$($authenticationResult.AccessToken)"
 
-
 # Compose the access token type and access token for authorization header 
 $authorizationHeader = $authenticationResult.AccessTokenType + " " + $authenticationResult.AccessToken 
 
@@ -91,8 +90,6 @@ $authHeader = @{
    'Authorization'= $authorizationHeader 
 }
 
-$bodyContent = '{"name": "DeviceMessage","columns":[{"name": "DeviceId","dataType": "string"},{"name": "Message","dataType": "string"}]}'
-
 # properly format groups path
 $groupsPath = ""
 if ($groupID -eq "me") {
@@ -101,6 +98,6 @@ if ($groupID -eq "me") {
     $groupsPath = "myorg/groups/$groupID"
 }
 
-# Refresh the dataset
-$uri = "https://api.powerbi.com/v1.0/$groupsPath/datasets/$datasetID/tables/DeviceMessage"
-Invoke-RestMethod -Uri $uri –Headers $authHeader –Method POST -Body $bodyContent –Verbose
+# List datasets in a group
+$uri = "https://api.powerbi.com/v1.0/$groupsPath/datasets"
+Invoke-RestMethod -Uri $uri –Headers $authHeader –Method GET –Verbose

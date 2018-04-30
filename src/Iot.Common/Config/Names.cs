@@ -31,9 +31,11 @@ namespace Iot.Common
         public const string EntitiesDictionaryName = "store://entities/dictionary";
         public const string IdentitiesDictionaryName = "store://identities/dictionary";
 
-        public const int TransactionsRetryCount = 20;
+        public const int TransactionsRetryCount = 10;
         public const int TransactionRetryWaitIntervalInMills = 200;
 
         public const int IoTHubRetryWaitIntervalsInMills = 60000;
+        public const int EventsProcessorOffsetInterval = 5;
+
     }
 }

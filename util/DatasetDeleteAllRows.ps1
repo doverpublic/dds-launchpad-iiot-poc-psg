@@ -79,7 +79,6 @@ echo "   TenantId=$($authenticationResult.TenantId)"
 echo "   TokenId=$($authenticationResult.IdToken)"
 echo "   Token=$($authenticationResult.AccessToken)"
 
-
 # Compose the access token type and access token for authorization header 
 $authorizationHeader = $authenticationResult.AccessTokenType + " " + $authenticationResult.AccessToken 
 
@@ -91,8 +90,6 @@ $authHeader = @{
    'Authorization'= $authorizationHeader 
 }
 
-$bodyContent = '{"name": "DeviceMessage","columns":[{"name": "DeviceId","dataType": "string"},{"name": "Message","dataType": "string"}]}'
-
 # properly format groups path
 $groupsPath = ""
 if ($groupID -eq "me") {
@@ -101,6 +98,6 @@ if ($groupID -eq "me") {
     $groupsPath = "myorg/groups/$groupID"
 }
 
-# Refresh the dataset
-$uri = "https://api.powerbi.com/v1.0/$groupsPath/datasets/$datasetID/tables/DeviceMessage"
-Invoke-RestMethod -Uri $uri –Headers $authHeader –Method POST -Body $bodyContent –Verbose
+# List datasets in a group
+$uri = "https://api.powerbi.com/v1.0/$groupsPath/datasets"
+Invoke-RestMethod -Uri $uri –Headers $authHeader –Method GET –Verbose

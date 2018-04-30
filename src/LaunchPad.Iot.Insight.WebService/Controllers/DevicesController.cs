@@ -130,12 +130,19 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                     return this.Ok(deviceViewModelList);
             }
 
+            deviceViewModelList = await GetDevicesDataAsync( deviceId, this.httpClient, this.fabricClient, this.appLifetime);
+            return this.Ok(deviceViewModelList);
+        }
+
+        public static async Task<List<DeviceViewModelList>> GetDevicesDataAsync( string deviceId, HttpClient httpClient, FabricClient fabricClient, IApplicationLifetime appLifetime)
+        {
+            List<DeviceViewModelList> deviceViewModelList = new List<DeviceViewModelList>();
             ServiceUriBuilder uriBuilder = new ServiceUriBuilder(TargetSiteDataServiceName);
             Uri serviceUri = uriBuilder.Build();
 
             // service may be partitioned.
             // this will aggregate device IDs from all partitions
-            ServicePartitionList partitions = await this.fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
+            ServicePartitionList partitions = await fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
 
             foreach (Partition partition in partitions)
             {
@@ -145,11 +152,11 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                     .SetServicePathAndQuery($"/api/devices")
                     .Build();
 
-                HttpResponseMessage response = await this.httpClient.GetAsync(getUrl, this.appLifetime.ApplicationStopping);
+                HttpResponseMessage response = await httpClient.GetAsync(getUrl,appLifetime.ApplicationStopping);
 
                 if (response.StatusCode != System.Net.HttpStatusCode.OK)
                 {
-                    return this.StatusCode((int)response.StatusCode);
+                    return deviceViewModelList;
                 }
 
                 JsonSerializer serializer = new JsonSerializer();
@@ -167,7 +174,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                             {
                                 foreach (DeviceViewModelList device in result)
                                 {
-                                    if (device.DeviceId.Equals(deviceId, StringComparison.InvariantCultureIgnoreCase) )
+                                    if (device.DeviceId.Equals(deviceId, StringComparison.InvariantCultureIgnoreCase))
                                         deviceViewModelList.Add(device);
                                 }
                             }
@@ -176,9 +183,11 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                 }
             }
 
-            return this.Ok(deviceViewModelList);
+            return deviceViewModelList;
         }
 
+
+        // PRIVATE METHODS
         // Read from the partitition associated with the entity name (hash of entity name determines with partitiion holds the data)
         private async Task<object> ExecuteGET(Type targetType, string targetService, string servicePathAndQuery, string entityName, string entityKey, HttpClient httpClient, FabricClient fabricClient, IApplicationLifetime appLifetime)
         {
