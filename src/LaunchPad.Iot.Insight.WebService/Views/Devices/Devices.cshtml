@@ -102,9 +102,7 @@
                             $queueElement.html(result);
                          },
                         error: function (error) {
-                            $result.removeClass();
-                            $result.addClass('errorResult');
-                            $result.html('Failed to refresh info from [' + apiUrl + '] - [ Message[' + error.responseText + ']');
+                            window.location.href = error.responseText;
                         }
                 })
                 .always(function() {

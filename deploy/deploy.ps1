@@ -82,7 +82,7 @@ Param
     $OverwriteBehavior = 'SameAppTypeAndVersion',
 
     [int]
-    $CopyPackageTimeoutSec = 600,
+    $CopyPackageTimeoutSec = 1200,
 
     [Switch]
     $SkipPackageValidation,

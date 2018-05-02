@@ -98,6 +98,12 @@ if ($groupID -eq "me") {
     $groupsPath = "myorg/groups/$groupID"
 }
 
+
+# List datasets in a group
+$uri = "https://api.powerbi.com/v1.0/$groupsPath/reports"
+Invoke-RestMethod -Uri $uri –Headers $authHeader –Method GET –Verbose | format-list
+.txt
+
 # List datasets in a group
 $uri = "https://api.powerbi.com/v1.0/$groupsPath/datasets"
-Invoke-RestMethod -Uri $uri –Headers $authHeader –Method GET –Verbose
+Invoke-RestMethod -Uri $uri –Headers $authHeader –Method GET –Verbose | format-list

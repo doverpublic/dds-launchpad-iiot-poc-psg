@@ -10,16 +10,26 @@ namespace Iot.Common
 
     public class ServiceUriBuilder
     {
-        public ServiceUriBuilder(string serviceInstance)
+        public ServiceUriBuilder(string serviceName)
         {
-            this.ServiceName = serviceInstance;
+            this.ServiceName = serviceName;
         }
 
-        public ServiceUriBuilder(string applicationInstance, string serviceName)
+        public ServiceUriBuilder(string applicationNamePrefix, string siteName, string serviceName)
         {
-            this.ApplicationInstance = !applicationInstance.StartsWith("fabric:/")
-                ? "fabric:/" + applicationInstance
-                : applicationInstance;
+            this.ApplicationInstance = !applicationNamePrefix.StartsWith("fabric:/")
+                ? "fabric:/" + applicationNamePrefix
+                : applicationNamePrefix;
+
+            this.ServiceName = serviceName;
+            this.SiteName = siteName;
+        }
+
+        public ServiceUriBuilder(string applicationNamePrefix, string serviceName)
+        {
+            this.ApplicationInstance = !applicationNamePrefix.StartsWith("fabric:/")
+                ? "fabric:/" + applicationNamePrefix
+                : applicationNamePrefix;
 
             this.ServiceName = serviceName;
         }
@@ -33,6 +43,8 @@ namespace Iot.Common
         /// The name of the service instance.
         /// </summary>
         public string ServiceName { get; set; }
+
+        public string SiteName { get; set; }
 
         public Uri Build()
         {
@@ -53,7 +65,14 @@ namespace Iot.Common
                 }
             }
 
-            return new Uri(applicationInstance.TrimEnd('/') + "/" + this.ServiceName);
+            string url = applicationInstance.TrimEnd('/') + "/";
+
+            if (this.SiteName != null && this.SiteName.Length > 0)
+                url += SiteName.TrimEnd('/');
+            else
+                url = url.TrimEnd('/');
+
+            return new Uri(url + "/" + this.ServiceName);
         }
     }
 }

@@ -127,9 +127,9 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
             }
 
             if( userProfile != null )
-                Debug.WriteLine("On ExecutePOST postContent=[" + userProfile.ToString() + "]");
+                Debug.WriteLine("On CreateEntity postContent=[" + userProfile.ToString() + "]");
             else
-                Debug.WriteLine("On ExecutePOST postContent=[ userProfile is null ]");
+                Debug.WriteLine("On CreateEntity postContent=[ userProfile is null ]");
 
             if (userProfile == null)
             {

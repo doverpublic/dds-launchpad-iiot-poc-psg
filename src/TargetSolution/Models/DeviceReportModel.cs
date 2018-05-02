@@ -1,14 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿// ------------------------------------------------------------
+//  Copyright (c) Dover Corporation.  All rights reserved.
+//  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
+// ------------------------------------------------------------
 
-namespace Launchpad.Iot.Insight.WebService.ViewModels
+
+using System;
+
+namespace Launchpad.Iot.PSG.Model
 {
     public class DeviceReportModel
     {
 
-        public DeviceReportModel(DateTimeOffset timestampGroup,
+        public DeviceReportModel(string reportUniqueId,
                                     DateTimeOffset timestamp,
                                     string deviceId,
                                     int batteryLevel,
@@ -30,7 +33,7 @@ namespace Launchpad.Iot.Insight.WebService.ViewModels
                                     int frequency,
                                     int magnitude)
         {
-            this.TimestampGroup = timestampGroup;
+            this.ReportUniqueId = reportUniqueId;
             this.Timestamp = timestamp;
             this.DeviceId = deviceId;
             this.BatteryLevel = batteryLevel;
@@ -53,7 +56,7 @@ namespace Launchpad.Iot.Insight.WebService.ViewModels
             this.Magnitude = magnitude;
         }
 
-        public DateTimeOffset TimestampGroup { get; private set; }
+        public string ReportUniqueId { get; private set; }
         public DateTimeOffset Timestamp { get; private set; }
         public string DeviceId { get; private set; }
         public int BatteryLevel { get; private set; }

@@ -3,7 +3,7 @@
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
-namespace Launchpad.Iot.Insight.WebService.ViewModels
+namespace Launchpad.Iot.PSG.Model
 {
     using System;
 

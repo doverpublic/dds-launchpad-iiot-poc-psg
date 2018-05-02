@@ -12,7 +12,7 @@ namespace Launchpad.Iot.Admin.WebService
     using Microsoft.ApplicationInsights;
 
 
-    [EventSource(Name = "Microsoft-Launchpad.IoT.Admin.WebService")]
+    [EventSource(Name = "DoverDigital-Launchpad.IoT.Admin.WebService")]
     internal sealed class ServiceEventSource : EventSource
     {
         public static readonly ServiceEventSource Current = new ServiceEventSource();

@@ -18,15 +18,13 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
     using Microsoft.AspNetCore.Hosting;
     using Newtonsoft.Json;
 
-    using Iot.Insight.WebService.ViewModels;
+    using Launchpad.Iot.PSG.Model;
 
     using global::Iot.Common;
 
     [Route("api/[controller]")]
     public class DevicesController : Controller
     {
-        private const string TargetSiteDataServiceName = "DataService";
-
         private readonly FabricClient fabricClient;
         private readonly IApplicationLifetime appLifetime;
         private readonly HttpClient httpClient;
@@ -73,11 +71,11 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
             if((reportsSecretKey.Length == 0) && HTTPHelper.IsSessionExpired(HttpContext, this))
             {
-                return Redirect(contextUri.GetServiceNameSiteHomePath());
+                return Ok(contextUri.GetServiceNameSiteHomePath());
             }
             else
             {
-                ServiceUriBuilder uriBuilder = new ServiceUriBuilder(TargetSiteDataServiceName);
+                ServiceUriBuilder uriBuilder = new ServiceUriBuilder(Names.InsightDataServiceName);
                 Uri serviceUri = uriBuilder.Build();
 
                 // service may be partitioned.
@@ -121,7 +119,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
             if ((reportsSecretKey.Length == 0) && HTTPHelper.IsSessionExpired(HttpContext, this))
             {
-                return Redirect(contextUri.GetServiceNameSiteHomePath());
+                return Ok(contextUri.GetServiceNameSiteHomePath());
             }
             else if (reportsSecretKey.Length > 0 )
             {
@@ -137,7 +135,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
         public static async Task<List<DeviceViewModelList>> GetDevicesDataAsync( string deviceId, HttpClient httpClient, FabricClient fabricClient, IApplicationLifetime appLifetime)
         {
             List<DeviceViewModelList> deviceViewModelList = new List<DeviceViewModelList>();
-            ServiceUriBuilder uriBuilder = new ServiceUriBuilder(TargetSiteDataServiceName);
+            ServiceUriBuilder uriBuilder = new ServiceUriBuilder(Names.InsightDataServiceName);
             Uri serviceUri = uriBuilder.Build();
 
             // service may be partitioned.
@@ -184,95 +182,6 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
             }
 
             return deviceViewModelList;
-        }
-
-
-        // PRIVATE METHODS
-        // Read from the partitition associated with the entity name (hash of entity name determines with partitiion holds the data)
-        private async Task<object> ExecuteGET(Type targetType, string targetService, string servicePathAndQuery, string entityName, string entityKey, HttpClient httpClient, FabricClient fabricClient, IApplicationLifetime appLifetime)
-        {
-            object objRet = null;
-            ServiceUriBuilder uriBuilder = new ServiceUriBuilder(targetService);
-            Uri serviceUri = uriBuilder.Build();
-            long targetSiteServicePartitionKey = FnvHash.Hash(entityName);
-
-
-
-            // service may be partitioned.
-            // this will aggregate device IDs from all partitions
-            ServicePartitionList partitions = await fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
-
-            foreach (Partition partition in partitions)
-            {
-                Uri getUrl = new HttpServiceUriBuilder()
-                    .SetServiceName(serviceUri)
-                    .SetPartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey)
-                    .SetServicePathAndQuery(servicePathAndQuery)
-                    .Build();
-
-                HttpResponseMessage response = await httpClient.GetAsync(getUrl, appLifetime.ApplicationStopping);
-
-                if (response.StatusCode != System.Net.HttpStatusCode.OK)
-                {
-                    return this.StatusCode((int)response.StatusCode);
-                }
-
-                JsonSerializer serializer = new JsonSerializer();
-                using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
-                {
-                    using (JsonTextReader jsonReader = new JsonTextReader(streamReader))
-                    {
-                        objRet = serializer.Deserialize(jsonReader, targetType);
-
-                        if (objRet != null)
-                            break;
-                    }
-                }
-            }
-
-            return objRet;
-        }
-
-        // read from all partititions
-        private async Task<object> ExecuteGET(Type targetType, string targetService, string servicePathAndQuery, string entityName, HttpClient httpClient, FabricClient fabricClient, IApplicationLifetime appLifetime)
-        {
-            object objRet = null;
-            ServiceUriBuilder uriBuilder = new ServiceUriBuilder(TargetSiteDataServiceName);
-            Uri serviceUri = uriBuilder.Build();
-
-            // service may be partitioned.
-            // this will aggregate device IDs from all partitions
-            ServicePartitionList partitions = await fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
-
-            foreach (Partition partition in partitions)
-            {
-                Uri getUrl = new HttpServiceUriBuilder()
-                    .SetServiceName(serviceUri)
-                    .SetPartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey)
-                    .SetServicePathAndQuery(servicePathAndQuery)
-                    .Build();
-
-                HttpResponseMessage response = await httpClient.GetAsync(getUrl, appLifetime.ApplicationStopping);
-
-                if (response.StatusCode != System.Net.HttpStatusCode.OK)
-                {
-                    return this.StatusCode((int)response.StatusCode);
-                }
-
-                JsonSerializer serializer = new JsonSerializer();
-                using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
-                {
-                    using (JsonTextReader jsonReader = new JsonTextReader(streamReader))
-                    {
-                        objRet = serializer.Deserialize(jsonReader, targetType);
-
-                        if (objRet != null)
-                            break;
-                    }
-                }
-            }
-
-            return objRet;
         }
     }
 }

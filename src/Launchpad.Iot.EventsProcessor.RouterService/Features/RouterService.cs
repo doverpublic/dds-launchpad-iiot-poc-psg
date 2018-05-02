@@ -70,7 +70,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                                  // The idea is to create a listening port for each instance 
                                  // This application will never be called - the only purpose of this listener is
 
-                                 url += $"/eventsprocessor/{ServiceUniqueId}";
+                                 url += $"/eventsprocessor/router/{ServiceUniqueId}";
 
                                  ServiceEventSource.Current.Message( "Router Service Initialized on " + url + " - Dummy url not to be used" );
 

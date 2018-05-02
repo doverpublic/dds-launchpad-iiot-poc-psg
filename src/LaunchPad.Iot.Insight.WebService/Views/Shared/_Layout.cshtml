@@ -40,47 +40,7 @@
             </div>
             <div id="headerRight" class="div-right"></div>
             <div id="headerRight1" class="div-right"></div>
-            <div id="loginDialog" title="Login">
-                @using (Html.BeginForm("login", "Home", FormMethod.Post))
-                {
-                    @Html.ValidationSummary(true, "", new { @class = "text-danger"})
-                    <fieldset>
-                        @Html.AntiForgeryToken()
-                        @Html.ValidationSummary(true)
-                        @if (@ViewBag.Message != null)
-                        {
-                            <div style="border: 1px solid red">@ViewBag.Message</div>
-                        }
-                        
-                        <table>
-                            <tr>
-                                <td>@Html.LabelFor(a => a.UserName)</td>
-                                <td>@Html.TextBoxFor(a => a.UserName)</td>
-                                <td>@Html.ValidationMessageFor(a => a.UserName, "", new { @class = "text-danger" })</td>
-                            </tr>
-                            <tr>
-                                <td>@Html.LabelFor(a => a.Password)</td>
-                                <td>@Html.PasswordFor(a => a.Password)</td>
-                                <td>@Html.ValidationMessageFor(a => a.Password, "", new { @class = "text-danger" })</td>
-                            </tr>
-                            @if ("@Html.Raw( Model.NeedPasswordReset)" == "True")
-                            {
-                                <tr>
-                                    <td>@Html.Label("ConfirmPassword")</td>
-                                    <td>@Html.Password("ConfirmPassword")</td>
-                                    <td>@Html.ValidationMessage("ConfirmPassword", "", new { @class = "text-danger" })</td>
-                                </tr>
-                            }
-                            <tr>
-                                <td></td>
-                                <td><input type="submit" value="Login" /></td>
-                                <td></td>
-                            </tr>
-                        </table>
-                    </fieldset>
-                }
-            </div>
-            <div id="registrationDialog" title="User Registration">
+            <div id="registrationLoginDialog" title="User Registration" style="display:none;">
                 @using (Html.BeginForm("login", "Home", FormMethod.Post))
                 {
                     @Html.ValidationSummary(true, "", new { @class = "text-danger" })
@@ -95,12 +55,12 @@
                 
                         <table>
                             <tr>
-                                <td>@Html.LabelFor(a => a.FirstName)</td>
+                                <td><label id="labelFirstName" for="FirstName">First Name</label></td>
                                 <td>@Html.TextBoxFor(a => a.FirstName)</td>
                                 <td>@Html.ValidationMessageFor(a => a.FirstName, "", new { @class = "text-danger" })</td>
                             </tr>
                             <tr>
-                                <td>@Html.LabelFor(a => a.LastName)</td>
+                                <td><label id="labelLastName" for="LastName">Last Name</label></td>
                                 <td>@Html.TextBoxFor(a => a.LastName)</td>
                                 <td>@Html.ValidationMessageFor(a => a.LastName, "", new { @class = "text-danger" })</td>
                             </tr>
@@ -115,13 +75,13 @@
                                 <td>@Html.ValidationMessageFor(a => a.Password, "", new { @class = "text-danger" })</td>
                             </tr>
                             <tr>
-                                <td>@Html.Label("ConfirmPassword")</td>
+                                <td><label id="labelConfirmPassword" for="ConfirmPassword">Confirm Password</label></td>
                                 <td>@Html.Password("ConfirmPassword")</td>
                                 <td>@Html.ValidationMessage("ConfirmPassword", "", new { @class = "text-danger" })</td>
                             </tr>
                             <tr>
                                 <td></td>
-                                <td><input id="btnRegisterAndLogin" type="submit" value="Register and Login" /></td>
+                                <td><input id="btnRegisterAndLogin" type="submit" value="Submit" /></td>
                                 <td></td>
                             </tr>
                         </table>
@@ -137,15 +97,7 @@
     <script>
         var loginMessage = "@ViewBag.Message";
         var loginUsername = "@ViewBag.UserName";
-        var optLogin = {
-            autoOpen: false,
-            modal: true,
-            hide: "puff",
-            show: "slide",
-            height: 200,
-            width: 400
-        };
-        var optRegistration = {
+        var optLoginRegistration = {
             autoOpen: false,
             modal: false,
             hide: "puff",
@@ -153,16 +105,38 @@
             height: 250,
             width : 400
         };
+
+        var doingLoginAndRegistration = false;
+
         $(function () {
-            $("#loginDialog").dialog(optLogin);
+            $("#registrationLoginDialog").dialog(optLoginRegistration);
+
             $("#openLoginDialog").click(function () {
-                $("#loginDialog").dialog("open");
+                doingLoginAndRegistration = false;
+                $("#registrationLoginDialog").dialog('option', 'title', 'Login');
+                $("#registrationLoginDialog").dialog('option', 'height', '200');
+                $("#FirstName").hide();
+                $("#LastName").hide();
+                $("#ConfirmPassword").hide();
+                $("#labelFirstName").hide();
+                $("#labelLastName").hide();
+                $("#labelConfirmPassword").hide();
+                $("#registrationLoginDialog").dialog("open");
             });
-            $("#registrationDialog").dialog(optRegistration);
+
             if (registerNewUser)
             {
                 $("#openRegisterDialog").click(function () {
-                    $("#registrationDialog").dialog("open");
+                    doingLoginAndRegistration = true;
+                    $("#registrationLoginDialog").dialog('option', 'title', 'User Registration');
+                    $("#registrationLoginDialog").dialog('option', 'height', '250');
+                    $("#FirstName").show();
+                    $("#LastName").show();
+                    $("#ConfirmPassword").show();
+                    $("#labelFirstName").show();
+                    $("#labelLastName").show();
+                    $("#labelConfirmPassword").show();
+                    $("#registrationLoginDialog").dialog("open");
                 });
             }
         });
@@ -197,11 +171,13 @@
         // validate password
         $(function () {
             $("#btnRegisterAndLogin").click(function () {
-                var password = $("#Password").val();
-                var confirmPassword = $("#ConfirmPassword").val();
-                if (password != confirmPassword) {
-                    alert("Passwords do not match.");
-                    return false;
+                if (doingLoginAndRegistration) {
+                    var password = $("#Password").val();
+                    var confirmPassword = $("#ConfirmPassword").val();
+                    if (password != confirmPassword) {
+                        alert("Passwords do not match.");
+                        return false;
+                    }
                 }
                 return true;
             });
@@ -219,8 +195,9 @@
                 }
             }).success(function (res) {
                 hide_error();
+                window.location.href = res.responseText;
             }).error(function (res) {
-                console.log(res);
+                window.location.href = res.responseText;
             });
         }
 

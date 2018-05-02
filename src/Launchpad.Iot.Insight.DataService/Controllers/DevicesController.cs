@@ -18,6 +18,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
 
     using global::Iot.Common;
     using TargetSolution;
+    using Launchpad.Iot.PSG.Model;
 
     [Route("api/[controller]")]
     public class DevicesController : Controller

@@ -1,18 +1,16 @@
-﻿// ------------------------------------------------------------
-//  Copyright (c) Dover Corporation.  All rights reserved.
-//  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
-// ------------------------------------------------------------
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics.Tracing;
+using System.Fabric;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Microsoft.ServiceFabric.Services.Runtime;
+using Microsoft.ApplicationInsights;
 
-namespace Launchpad.Iot.EventsProcessor.RouterService
+
+namespace Launchpad.Iot.EventsProcessor.ExtenderService
 {
-    using System;
-    using System.Diagnostics.Tracing;
-    using System.Fabric;
-    using System.Threading.Tasks;
-    using Microsoft.ApplicationInsights;
-
-    //    internal sealed class ServiceEventSource : ServiceEventSourceBase { }
-
     [EventSource(Name = "DoverDigital-Launchpad.Iot.EventsProcessor.RouterService")]
     internal sealed class ServiceEventSource : EventSource
     {

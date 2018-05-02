@@ -18,7 +18,6 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
     using System.Linq;
     using System.Net.Http.Headers;
 
-    using Newtonsoft.Json;
 
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.AspNetCore.Mvc;
@@ -29,9 +28,11 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
     using Microsoft.Rest;
 
     using global::Iot.Common;
+    using global::Iot.Common.REST;
     using Iot.Insight.WebService.ViewModels;
 
-  
+    using Launchpad.Iot.PSG.Model;
+
     public class HomeController : Controller
     {
         private readonly FabricClient fabricClient;
@@ -50,7 +51,6 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
         private static readonly string GroupId = appSettings["groupId"];
         private static readonly string ReportId = appSettings["reportId"];
         private static readonly string DatasetId = appSettings["datasetId"];
-        private static readonly string PushURL = "https://api.powerbi.com/beta/3d2d2b6f-061a-48b6-b4b3-9312d687e3a1/datasets/ac227ec0-5bfe-4184-85b1-a9643778f1e4/rows?key=zrg4K1om2l4mj97GF6T3p0ze3SlyynHWYRQMdUUSC0BWetzC7bF3RZgPMG4ukznAhGub5aPsDXuQMq540X8hZA%3D%3D";
 
         public HomeController(StatelessServiceContext context, FabricClient fabricClient, HttpClient httpClient, IApplicationLifetime appLifetime )
         {
@@ -98,7 +98,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
             if (HTTPHelper.IsSessionExpired(HttpContext,this))
             {
-                return Redirect(contextUri.GetServiceNameSiteHomePath());
+                return Ok(contextUri.GetServiceNameSiteHomePath());
             }
             else
             {
@@ -106,11 +106,14 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                 this.ViewData["PageTitle"] = "Report";
                 this.ViewData["HeaderTitle"] = "Last Posted Events";
 
-                EmbedConfig task = await EmbedReportConfigData(reportParm);
+                string reportUniqueId = FnvHash.GetUniqueId();
+
+
+                EmbedConfig task = await EmbedReportConfigData(reportUniqueId, reportParm);
                 this.ViewData["EmbedToken"] = task.EmbedToken.Token;
                 this.ViewData["EmbedURL"] = task.EmbedUrl;
                 this.ViewData["EmbedId"] = task.Id;
-                this.ViewData["ReportParm"] = reportParm;
+                this.ViewData["ReportUniqueId"] = reportUniqueId;
 
                 return this.View();
             }
@@ -135,14 +138,15 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                     if (objUser.FirstName != null)
                     {
                         newUserRegistration = true;
-                        Task<bool> result = ExecutePOST(typeof(UserProfile),
+                        Task<bool> result = RESTHandler.ExecuteFabricPOSTForEntity(typeof(UserProfile),
                                                     Names.InsightDataServiceName,
                                                     "api/entities/user/withIdentity/" + objUser.UserName,
                                                     "user",
                                                     objUser,
-                                                    this.httpClient,
-                                                    this.fabricClient,
-                                                    this.appLifetime);
+                                                    this.context,
+                                                    this.httpClient,                                                 
+                                                    this.appLifetime,
+                                                    ServiceEventSource.Current);
                         if (result.Result)
                             userAllowedToLogin = true;
                         else
@@ -151,14 +155,14 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
                     if (!userAllowedToLogin && !newUserRegistration)
                     {
-                        Task<object> userObject = ExecuteGET(typeof(UserProfile),
+                        Task<object> userObject = RESTHandler.ExecuteFabricGETForEntity(typeof(UserProfile),
                                                     Names.InsightDataServiceName,
                                                     "api/entities/user/byIdentity/" + objUser.UserName,
                                                     "user",
-                                                    objUser.UserName,
+                                                    this.context,
                                                     this.httpClient,
-                                                    this.fabricClient,
-                                                    this.appLifetime);
+                                                    this.appLifetime,
+                                                    ServiceEventSource.Current);
                         if (userObject != null)
                         {
                             UserProfile userProfile = (UserProfile)userObject.Result;
@@ -211,7 +215,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
             // Manage session
             if (!HTTPHelper.IsSessionExpired(HttpContext, this))
                 HTTPHelper.EndSession(HttpContext, this);
-            return Redirect(contextUri.GetServiceNameSiteHomePath());
+            return Ok(contextUri.GetServiceNameSiteHomePath());
         }
 
         public IActionResult About()
@@ -241,7 +245,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
 
         // PRIVATE METHODS
-        private async Task<EmbedConfig> EmbedReportConfigData(string reportParm)
+        private async Task<EmbedConfig> EmbedReportConfigData(string reportUniqueId, string reportParm)
         {
             var result = new EmbedConfig();
             var username = "";
@@ -290,7 +294,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
                     if (report == null)
                     {
-                        result.ErrorMessage = "Group has no reports.";
+                        result.ErrorMessage = $"PowerBI Group has no report registered for id[{ReportId}].";
                         return result;
                     }
 
@@ -329,8 +333,9 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
                     // Now it is time to refresh the data set
 
+                    List<DeviceViewModelList> deviceViewModelList = await DevicesController.GetDevicesDataAsync(reportParm, httpClient, fabricClient, appLifetime );
 
-                    var refreshDataresult = await PublishReportDataFor(reportParm, httpClient, fabricClient, appLifetime);
+                    var refreshDataresult = await ReportsDataHandlercs.PublishReportDataFor(reportUniqueId, reportParm, "client01", context, httpClient, appLifetime, ServiceEventSource.Current, deviceViewModelList);
 
                     if (refreshDataresult)
                     {
@@ -402,258 +407,6 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
             return null;
         }
 
-        // PRIVATE METHODS For Entity work
 
-        // Read from the partitition associated with the entity name (hash of entity name determines with partitiion holds the data)
-        private async Task<object> ExecuteGET(Type targetObjectType, string targetServiceType, string servicePathAndQuery, string entityName, string entityKey, HttpClient httpClient, FabricClient fabricClient, IApplicationLifetime appLifetime)
-        {
-            object objRet = null;
-            ServiceUriBuilder uriBuilder = new ServiceUriBuilder(targetServiceType);
-            Uri serviceUri = uriBuilder.Build();
-            long targetSiteServicePartitionKey = FnvHash.Hash(entityName);
-            Uri getUrl = new HttpServiceUriBuilder()
-                .SetServiceName(serviceUri)
-                .SetPartitionKey(targetSiteServicePartitionKey)
-                .SetServicePathAndQuery(servicePathAndQuery)
-                .Build();
-
-            HttpResponseMessage response = await httpClient.GetAsync(getUrl, appLifetime.ApplicationStopping);
-
-            if (response.StatusCode != System.Net.HttpStatusCode.OK)
-            {
-                return this.StatusCode((int)response.StatusCode);
-            }
-
-            JsonSerializer serializer = new JsonSerializer();
-            using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
-            {
-                using (JsonTextReader jsonReader = new JsonTextReader(streamReader))
-                {
-                    objRet = serializer.Deserialize(jsonReader, targetObjectType);
-                }
-            }
-
-            return objRet;
-        }
-
-        private async Task<bool> ExecutePOST(Type targetObjectType, string targetServiceType, string servicePathAndQuery, string entityName, object bodyObject, HttpClient httpClient, FabricClient fabricClient, IApplicationLifetime appLifetime)
-        {
-            bool bRet = false;
-            ServiceUriBuilder uriBuilder = new ServiceUriBuilder(targetServiceType);
-            Uri serviceUri = uriBuilder.Build();
-            long targetSiteServicePartitionKey = FnvHash.Hash(entityName);
-
-            Uri postUrl = new HttpServiceUriBuilder()
-                .SetServiceName(serviceUri)
-                .SetPartitionKey(targetSiteServicePartitionKey)
-                .SetServicePathAndQuery(servicePathAndQuery)
-                .Build();
-
-            string jsonStr = JsonConvert.SerializeObject(bodyObject);
-            MemoryStream mStrm = new MemoryStream(Encoding.UTF8.GetBytes(jsonStr));
-
-            using (StreamContent postContent = new StreamContent(mStrm))
-            {
-                Debug.WriteLine("On ExecutePOST postContent=[" + await postContent.ReadAsStringAsync() + "]");
-
-                postContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-
-                HttpResponseMessage response = await httpClient.PostAsync(postUrl, postContent, appLifetime.ApplicationStopping);
-
-                if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
-                {
-                    // This service expects the receiving target site service to return HTTP 400 if the device message was malformed.
-                    // In this example, the message is simply logged.
-                    // Your application should handle all possible error status codes from the receiving service
-                    // and treat the message as a "poison" message.
-                    // Message processing should be allowed to continue after a poison message is detected.
-
-                    string responseContent = await response.Content.ReadAsStringAsync();
-
-                    ServiceEventSource.Current.ServiceMessage(this.context, $"On Execute POST for entity[" + entityName + "] request[" + servicePathAndQuery + "] result=[" + responseContent + "]");
-                }
-                else
-                {
-                    bRet = true;
-                }
-            }
-
-            return bRet;
-        }
-
-        private async Task<bool> ExecutePOSTBasic(String postUrl, object bodyObject, HttpClient httpClient, FabricClient fabricClient, IApplicationLifetime appLifetime, IEnumerable<KeyValuePair<string, IEnumerable<string>>> additionalHeaders = null )
-        {
-            bool bRet = false;
-
-            HttpContent postContent = null;
-
-            if ( bodyObject != null )
-            {
-                string jsonStr = JsonConvert.SerializeObject(bodyObject);
-
-                if( jsonStr.Length > 0 )
-                {
-                    MemoryStream mStrm = new MemoryStream(Encoding.UTF8.GetBytes(jsonStr));
-                    postContent = new StreamContent(mStrm);
-                }
-                else
-                {
-                    postContent = new StringContent("");
-                }
-                postContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-            }
-            else
-            { 
-                postContent = new StringContent("");
-                postContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-            }
-
-            if( additionalHeaders != null )
-            {
-                foreach(KeyValuePair<string, IEnumerable<string>> item in additionalHeaders )
-                {
-                    if( item.Key.Equals("Authorization"))
-                    {
-                        string scheme = "Bearer";
-                        string parameter = "";
-                        int counter = 0;
-                        foreach( string value in item.Value )
-                        {
-                            if (counter == 0)
-                                scheme = value;
-                            if (counter == 1)
-                                parameter = value;
-                            counter++;
-                        }
-
-                        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue( scheme, parameter);
-                    }
-                    else
-                    {
-                        if( item.Value.Count() > 1 )
-                        {
-                            httpClient.DefaultRequestHeaders.Add(item.Key, item.Value);
-                        }
-                        else
-                        {
-                            string value = item.Value.FirstOrDefault();
-
-                            httpClient.DefaultRequestHeaders.Add(item.Key, value);
-                        }
-                    }
-                }
-            }
-
-            HttpResponseMessage response = await httpClient.PostAsync(postUrl, postContent, appLifetime.ApplicationStopping);
-
-            if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
-            {
-                // This service expects the receiving target site service to return HTTP 400 if the device message was malformed.
-                // In this example, the message is simply logged.
-                // Your application should handle all possible error status codes from the receiving service
-                // and treat the message as a "poison" message.
-                // Message processing should be allowed to continue after a poison message is detected.
-
-                string responseContent = await response.Content.ReadAsStringAsync();
-            }
-            else
-            {
-                bRet = true;
-            }
- 
-            return bRet;
-        }
-
-        private async Task<bool> PublishReportDataFor( string deviceId, HttpClient httpClient, FabricClient fabricClient, IApplicationLifetime appLifetime )
-        {
-            bool bRet = false;
-
-            List<DeviceViewModelList> deviceViewModelList =  await DevicesController.GetDevicesDataAsync(deviceId, this.httpClient, this.fabricClient, this.appLifetime);
-
-            if( deviceViewModelList.Count > 0 )
-            {
-                DateTimeOffset timestampGroup = DateTimeOffset.UtcNow;
-                DateTimeOffset timestamp = timestampGroup;
-                bool firstItem = true;
-                List<DeviceReportModel> messages = new List<DeviceReportModel>();
-
-                foreach (DeviceViewModelList deviceModel in deviceViewModelList )
-                {
-                    string devId = deviceModel.DeviceId;
-                    IEnumerable<DeviceViewModel> evts = deviceModel.Events;
-                    int batteryLevel = 0;
-                    int batteryVoltage = 0;
-                    int batteryMax = 4000;
-                    int batteryMin = 0;
-                    int batteryTarget = 3200;
-                    int batteryPercentage = 0;
-                    int batteryPercentageMax = 100;
-                    int batteryPercentageMin = 0;
-                    int batteryPercentageTarget = 15;
-                    int temperature = 0;
-                    int temperatureMax = 200;
-                    int temperatureMin = -55;
-                    int temperatureTarget = 55;
-                    int dataPointsCount = 0;
-                    string measurementType = "";
-                    int sensorIndex = 0;
-                    int frequency = 0;
-                    int magnitude = 0;
-
-                    foreach (DeviceViewModel sensorMessage in evts)
-                    {
-                        if( firstItem )
-                        {
-                            batteryLevel = sensorMessage.BatteryLevel;
-                            timestamp = sensorMessage.Timestamp;
-                            measurementType = sensorMessage.MeasurementType;
-                            dataPointsCount = sensorMessage.DataPointsCount;
-                            sensorIndex = sensorMessage.SensorIndex;
-
-                            firstItem = false;
-                        }
-
-                        for(int index = 0; index < sensorMessage.Frequency.Length; index++ )
-                        {
-                            frequency = sensorMessage.Frequency[index];
-                            magnitude = sensorMessage.Magnitude[index];
-
-                            messages.Add(new DeviceReportModel(timestampGroup,
-                                    timestamp,
-                                    devId,
-                                    batteryLevel,
-                                    batteryVoltage,
-                                    batteryMax,
-                                    batteryMin,
-                                    batteryTarget,
-                                    batteryPercentage,
-                                    batteryPercentageMax,
-                                    batteryPercentageMin,
-                                    batteryPercentageTarget,
-                                    temperature,
-                                    temperatureMax,
-                                    temperatureMin,
-                                    temperatureTarget,
-                                    dataPointsCount,
-                                    measurementType,
-                                    sensorIndex,
-                                    frequency,
-                                    magnitude)
-                             );  
-                        }
-                    }
-
-                    bRet = await ExecutePOSTBasic(PushURL, messages, httpClient, fabricClient, appLifetime );
-
-                    if(!bRet)
-                    {
-                        ServiceEventSource.Current.ServiceMessage(this.context, $"Embed Report - Error during data push for report data");
-                        break;
-                    }
-                }
-            }
-
-            return bRet;
-        }
     }
 }

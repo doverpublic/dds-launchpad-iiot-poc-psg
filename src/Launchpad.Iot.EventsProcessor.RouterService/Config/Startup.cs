@@ -21,7 +21,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
     {
         public Startup(IHostingEnvironment env)
         {
-            ServiceEventSource.Current.Message($"Launchpad Events Processor Service  - Startup");
+            ServiceEventSource.Current.Message($"Launchpad Events Processor Router Service  - Startup");
             IConfigurationBuilder builder = new ConfigurationBuilder()
                 .SetBasePath(env.ContentRootPath)
                 .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
@@ -45,7 +45,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
 
                 message += "Key=" + section.Key + " Path=" + section.Path + " Value=" + value + " To String=" + section.ToString() + "\n";
             }
-            ServiceEventSource.Current.Message("On Launchpad Events Processor Sevice " + message + "]");
+            ServiceEventSource.Current.Message("On Launchpad Events Processor Router Sevice " + message + "]");
 
         }
 
@@ -54,7 +54,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            ServiceEventSource.Current.Message($"Launchpad Events Processor Service  - Startup - Configure Services");
+            ServiceEventSource.Current.Message($"Launchpad Events Processor Router Service  - Startup - Configure Services");
             // web security 
             services.AddCors();
 
@@ -65,7 +65,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
-            ServiceEventSource.Current.Message($"Launchpad Events Processor Service  - Startup - Configure");
+            ServiceEventSource.Current.Message($"Launchpad Events Processor Router Service  - Startup - Configure");
             loggerFactory.AddConsole(this.Configuration.GetSection("Logging"));
             loggerFactory.AddDebug();
 

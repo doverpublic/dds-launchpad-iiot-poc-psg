@@ -24,10 +24,12 @@ namespace Iot.Common
             this.Target = HttpServiceUriTarget.Default;
         }
 
-        public HttpServiceUriBuilder(string uri)
-            : this(new Uri(uri, UriKind.Absolute))
-        {
-        }
+        /*       public HttpServiceUriBuilder(string uri)
+                   : this(new Uri(uri, UriKind.Absolute))
+               {
+               }
+
+       */
 
         public HttpServiceUriBuilder(Uri uri)
         {
@@ -55,6 +57,7 @@ namespace Iot.Common
             this.EndpointName = segments[2];
             this.ServicePathAndQuery = String.Join("/", segments.Skip(3));
         }
+
 
         public string Scheme { get; private set; }
 

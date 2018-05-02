@@ -349,12 +349,15 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Features\EntityRegistry.cs" />
+    <Compile Include="Features\IServiceEventSource.cs" />
+    <Compile Include="Features\RESTHandler.cs" />
     <Compile Include="Features\ServiceEventSource.cs" />
     <Compile Include="Helpers\HTTPHelper.cs" />
     <Compile Include="Features\ManageAppSettings.cs" />
     <Compile Include="Features\MessageSchema.cs" />
     <Compile Include="Features\EventsContainer.cs" />
     <Compile Include="Helpers\IoTHubClient.cs" />
+    <Compile Include="Helpers\ServiceEventSourceHelper.cs" />
     <Compile Include="Models\EdgeDevice.cs" />
     <Compile Include="Models\User.cs" />
     <Compile Include="Util\FnvHash.cs" />

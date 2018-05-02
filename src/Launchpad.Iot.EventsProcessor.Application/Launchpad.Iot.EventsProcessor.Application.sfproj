@@ -22,6 +22,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Launchpad.Iot.EventsProcessor.RouterService\Launchpad.Iot.EventsProcessor.RouterService.csproj" />
+    <ProjectReference Include="..\Launchpad.Iot.EventsProcessor.ExtenderService\Launchpad.Iot.EventsProcessor.ExtenderService.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="app.config" />
