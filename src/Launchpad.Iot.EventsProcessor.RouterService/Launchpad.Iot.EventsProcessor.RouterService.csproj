@@ -528,9 +528,6 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="appsettings.json" />
-    <None Include="ApplicationInsights.config">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <None Include="Connected Services\Application Insights\ConnectedService.json" />
     <None Include="PackageRoot\Config\Settings.xml" />
     <None Include="PackageRoot\ServiceManifest.xml">

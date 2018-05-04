@@ -91,6 +91,26 @@ namespace Launchpad.Iot.Admin.WebService.Controllers
 
             await this.fabricClient.ServiceManager.CreateServiceAsync(service, this.operationTimeout, this.appLifetime.ApplicationStopping);
 
+            // Now it is time to create the ExtenderService
+            // Application parameters are passed to the Extender Processing application instance.
+            appInstanceParameters = new NameValueCollection();
+            appInstanceParameters["DataServiceURLs"] = parameters.DataServiceURLs;
+
+
+            // Next, create named instances of the services that run in the application.
+            serviceNameUriBuilder = new ServiceUriBuilder(application.ApplicationName.ToString(), Names.EventsProcessorExtenderServiceName);
+
+
+            StatelessServiceDescription extenderService = new StatelessServiceDescription()
+            {
+                ApplicationName = application.ApplicationName,
+                InstanceCount = 1,
+                PartitionSchemeDescription = new SingletonPartitionSchemeDescription(),
+                ServiceName = serviceNameUriBuilder.Build(),
+                ServiceTypeName = Names.EventsProcessorExtenderServiceTypeName
+            };
+
+            await this.fabricClient.ServiceManager.CreateServiceAsync(extenderService, this.operationTimeout, this.appLifetime.ApplicationStopping);
             return this.Ok();
         }
 

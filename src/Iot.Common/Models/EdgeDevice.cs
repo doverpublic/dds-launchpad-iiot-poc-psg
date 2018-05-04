@@ -31,6 +31,8 @@ namespace Iot.Common
             this.Id = FnvHash.GetUniqueId();
             this.DeviceId = deviceId;
             this.DeviceName = deviceName;
+            this.EventsCount = 0;
+            this.MessagesCount = 0;
         }
 
         [DataMember]
@@ -45,12 +47,19 @@ namespace Iot.Common
         public DateTimeOffset?      LastEventTimestamp { get; private set; }
         [DataMember]
         public int                  EventsCount { get; set; }
+        [DataMember]
+        public int                  MessagesCount { get; set; }
 
 
         public void AddEventCount( int count = 1 )
         {
             this.EventsCount += count;
             this.UpdateTimestamps();
+        }
+
+        public void AddMessageCount(int count = 1)
+        {
+            this.MessagesCount += count;
         }
 
         public void SubtractEventCount( int count = 1)

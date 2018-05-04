@@ -39,7 +39,13 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         public async Task<IActionResult> ReadEntityById( string name, string id)
         {
             User userRet = null;
-            IReliableDictionary<string, User> entitiesDictionary = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, User>>(Names.EntitiesDictionaryName);
+            IReliableDictionary<string, User> entitiesDictionary = null;
+
+            using (ITransaction tx = this.stateManager.CreateTransaction())
+            {
+                entitiesDictionary = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, User>>(tx,Names.EntitiesDictionaryName);
+                await tx.CommitAsync();
+            }
 
             using (ITransaction tx = this.stateManager.CreateTransaction())
             {
@@ -80,8 +86,20 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         public async Task<IActionResult> ReadEntityByIdentity(string name, string key)
         {
             UserProfile userProfile = new UserProfile();
-            IReliableDictionary<string, string> identitiesDictionary = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, string>>(Names.IdentitiesDictionaryName);
-            IReliableDictionary<string, User> entitiesDictionary = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, User>>(Names.EntitiesDictionaryName);
+            IReliableDictionary<string, string> identitiesDictionary = null;
+            IReliableDictionary<string, User> entitiesDictionary = null;
+
+            using (ITransaction tx = this.stateManager.CreateTransaction())
+            {
+                identitiesDictionary = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, string>>(tx, Names.IdentitiesDictionaryName);
+                await tx.CommitAsync();
+            }
+
+            using (ITransaction tx = this.stateManager.CreateTransaction())
+            {
+                entitiesDictionary = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, User>>(tx,Names.EntitiesDictionaryName);
+                await tx.CommitAsync();
+            }
 
             using (ITransaction tx = this.stateManager.CreateTransaction())
             {
@@ -147,8 +165,20 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
             user.PasswordCreated = true;
 
 
-            IReliableDictionary<string, string> identitiesDictionary = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, string>>(Names.IdentitiesDictionaryName);
-            IReliableDictionary<string, User> entitiesDictionary = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, User>>(Names.EntitiesDictionaryName);
+            IReliableDictionary<string, string> identitiesDictionary = null;
+            IReliableDictionary<string, User> entitiesDictionary = null;
+
+            using (ITransaction tx = this.stateManager.CreateTransaction())
+            {
+                identitiesDictionary = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, string>>(tx, Names.IdentitiesDictionaryName);
+                await tx.CommitAsync();
+            }
+
+            using (ITransaction tx = this.stateManager.CreateTransaction())
+            {
+                entitiesDictionary = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, User>>(tx, Names.EntitiesDictionaryName);
+                await tx.CommitAsync();
+            }
 
             using (ITransaction tx = this.stateManager.CreateTransaction())
             {

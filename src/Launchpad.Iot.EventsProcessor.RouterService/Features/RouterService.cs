@@ -218,10 +218,6 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
 
                                         HttpResponseMessage response = await httpClient.PostAsync(postUrl, postContent, cancellationToken);
 
-                                        ServiceEventSource.Current.ServiceMessage(
-                                            this.Context,
-                                            $"RouterService - {ServiceUniqueId} - RunAsync - Sent event data to insight service '{targetSiteServiceName}' with partition key '{targetSiteServicePartitionKey}'. Result: {response.StatusCode.ToString()}");
-
                                         if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
                                         {
                                             // This service expects the receiving target site service to return HTTP 400 if the device message was malformed.
@@ -236,6 +232,11 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                                                 this.Context,
                                                 $"RouterService - {ServiceUniqueId} - RunAsync - Insight service '{targetSiteServiceName}' returned HTTP 400 due to a bad device message from device '{deviceId}'. Error message: '{responseContent}'");
                                         }
+
+                                        ServiceEventSource.Current.ServiceMessage(
+                                            this.Context,
+                                            $"RouterService - {ServiceUniqueId} - RunAsync - Sent event data to Insight service '{targetSiteServiceName}' with partition key '{targetSiteServicePartitionKey}'. Result: {response.StatusCode.ToString()}");
+
                                     }
                                 }
 
@@ -286,7 +287,9 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                         catch (Exception ex)
                         {
                             string url = postUrl == null ? "Url undefined" : postUrl.ToString();
-                            ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - {ServiceUniqueId} - RunAsync - General Exception Url=[{url}]- Message=[{ex}] - Inner Exception=[{ex.InnerException}] Call Stack=[{ex.StackTrace}] - Stack trace of inner exception=[{ex.InnerException.StackTrace}]");
+                            //ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - {ServiceUniqueId} - RunAsync - General Exception Url=[{url}]- Message=[{ex}] - Inner Exception=[{ex.InnerException.Message ?? "ex.InnerException is null"}] Call Stack=[{ex.StackTrace ?? "ex.StackTrace is null"}] - Stack trace of inner exception=[{ex.InnerException.StackTrace ?? "ex.InnerException.StackTrace is null"}]");
+
+                            ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - {ServiceUniqueId} - RunAsync - General Exception Message[{ex.Message}] for url[{url}]");
                         }
                     }
                 }

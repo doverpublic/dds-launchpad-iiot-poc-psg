@@ -39,15 +39,20 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         [Route("")]
         public async Task<IActionResult> GetAsync()
         {
-            IReliableDictionary<string, DeviceEventSeries> storeInProgressMessage = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEventSeries>>(TargetSolution.Names.EventLatestDictionaryName);
-
             List<object> devices = new List<object>();
+            IReliableDictionary<string, DeviceEventSeries> storeLastCompletedMessage = null;
+
+            using (ITransaction tx = this.stateManager.CreateTransaction())
+            {
+                storeLastCompletedMessage = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEventSeries>>(tx, TargetSolution.Names.EventLatestDictionaryName);
+                await tx.CommitAsync();
+            }
 
             using (ITransaction tx = this.stateManager.CreateTransaction())
             {
                 try
                 {
-                    IAsyncEnumerable<KeyValuePair<string, DeviceEventSeries>> enumerable = await storeInProgressMessage.CreateEnumerableAsync(tx);
+                    IAsyncEnumerable<KeyValuePair<string, DeviceEventSeries>> enumerable = await storeLastCompletedMessage.CreateEnumerableAsync(tx);
                     IAsyncEnumerator<KeyValuePair<string, DeviceEventSeries>> enumerator = enumerable.GetAsyncEnumerator();
 
                     while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
@@ -59,11 +64,13 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                                 enumerator.Current.Value.Events
                             });
                     }
+                    await tx.CommitAsync();
                 }
                 catch (TimeoutException te)
                 {
                     // transient error. Could Retry if one desires .
                     ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - GetAsync - TimeoutException : Message=[{te.ToString()}]");
+                    tx.Abort();
                 }
                 catch (Exception ex)
                 {
@@ -79,28 +86,59 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         [Route("queue/length")]
         public async Task<IActionResult> GetQueueLengthAsync()
         {
-            IReliableDictionary<DateTimeOffset, DeviceEventSeries> storeCompletedMessages = await this.stateManager.GetOrAddAsync<IReliableDictionary<DateTimeOffset, DeviceEventSeries>>(TargetSolution.Names.EventHistoryDictionaryName);
             long count = -1;
+            IReliableDictionary<string, EdgeDevice> storeDeviceCounters = null;
 
             using (ITransaction tx = this.stateManager.CreateTransaction())
             {
                 try
                 {
-                    count = await storeCompletedMessages.GetCountAsync(tx);
+                    storeDeviceCounters = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, EdgeDevice>>(tx, TargetSolution.Names.EventCountsDictionaryName);
+                    await tx.CommitAsync();
                 }
                 catch (TimeoutException te)
                 {
                     // transient error. Could Retry if one desires .
-                    ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - GetQueueLengthAsync - TimeoutException : Message=[{te.ToString()}]");
+                    ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - GetQueueLengthAsync - Creating Trasaction - TimeoutException : Message=[{te.ToString()}]");
+                    tx.Abort();
                 }
                 catch (Exception ex)
                 {
-                    ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - GetQueueLengthAsync - General Exception - Message=[{0}]", ex);
+                    ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - GetQueueLengthAsync - Creating Trasaction - General Exception - Message=[{0}]", ex);
                     tx.Abort();
                 }
-
-                return this.Ok(count);
             }
+
+            if(storeDeviceCounters != null )
+            {
+                using (ITransaction tx = this.stateManager.CreateTransaction())
+                {
+                    try
+                    {
+                        IAsyncEnumerable<KeyValuePair<string, EdgeDevice>> enumerable = await storeDeviceCounters.CreateEnumerableAsync(tx);
+                        IAsyncEnumerator<KeyValuePair<string, EdgeDevice>> enumerator = enumerable.GetAsyncEnumerator();
+
+                        while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
+                        {
+                            count += enumerator.Current.Value.MessagesCount;
+                        }
+                        await tx.CommitAsync();
+                    }
+                    catch (TimeoutException te)
+                    {
+                        // transient error. Could Retry if one desires .
+                        ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - GetQueueLengthAsync - TimeoutException : Message=[{te.ToString()}]");
+                        tx.Abort();
+                    }
+                    catch (Exception ex)
+                    {
+                        ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - GetQueueLengthAsync - General Exception - Message=[{0}]", ex);
+                        tx.Abort();
+                    }
+                }
+            }
+
+            return this.Ok(count);
         }
 
         // PRIVATE Methods

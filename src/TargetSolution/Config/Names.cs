@@ -15,9 +15,10 @@ namespace TargetSolution
 {
     public static class Names
     {
+        public const string EventInProgressDictionaryName = "store://events/inprogress/dictionary";
         public const string EventLatestDictionaryName = "store://events/latest/dictionary";
-        public const string EventHistoryDictionaryName = "store://events/history/queue";
-        public const string EventCountsDictionaryName = "store://events/counts/queue";
+        public const string EventHistoryDictionaryName = "store://events/history/dictionary";
+        public const string EventCountsDictionaryName = "store://events/counts/dictionary";
 
         public const long DataOffloadBatchIntervalInSeconds = 600;   // this application is not doing any data offload - this timer is only a placehoder;
         public const int DataOffloadBatchSize = 100;

@@ -18,6 +18,8 @@ namespace Iot.Common
 
         public const string EventsProcessorApplicationPrefix = "fabric:/Launchpad.Iot.EventsProcessor";
         public const string EventsProcessorApplicationTypeName = "LaunchpadIotEventsProcessorApplicationType";
+        public const string EventsProcessorExtenderServiceName = "ExtenderService";
+        public const string EventsProcessorExtenderServiceTypeName = "ExtenderServiceType";
         public const string EventsProcessorRouterServiceName = "RouterService";
         public const string EventsProcessorRouterServiceTypeName = "RouterServiceType";
 

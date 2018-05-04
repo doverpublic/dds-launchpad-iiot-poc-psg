@@ -48,19 +48,19 @@ namespace Launchpad.Iot.PSG.Model
                 {
                     string devId = deviceModel.DeviceId;
                     IEnumerable<DeviceViewModel> evts = deviceModel.Events;
-                    int batteryLevel = 0;
+                    int batteryLevel = 3300;
                     int batteryVoltage = 0;
-                    int batteryMax = 4000;
-                    int batteryMin = 0;
-                    int batteryTarget = 3200;
-                    int batteryPercentage = 0;
+                    int batteryMax = 4;
+                    int batteryMin = 2;
+                    int batteryTarget = 3;
+                    int batteryPercentage = 30;
                     int batteryPercentageMax = 100;
                     int batteryPercentageMin = 0;
                     int batteryPercentageTarget = 15;
                     int temperature = 0;
                     int temperatureMax = 200;
-                    int temperatureMin = -55;
-                    int temperatureTarget = 55;
+                    int temperatureMin = -50;
+                    int temperatureTarget = 60;
                     int dataPointsCount = 0;
                     string measurementType = "";
                     int sensorIndex = 0;
@@ -72,10 +72,20 @@ namespace Launchpad.Iot.PSG.Model
                         if (firstItem)
                         {
                             batteryLevel = sensorMessage.BatteryLevel;
+                            batteryVoltage = batteryLevel / 1000;
+
+                            if (batteryLevel < 3000)
+                                batteryPercentage = 0;
+                            else if (batteryLevel > 4000)
+                                batteryPercentage = 100;
+                            else
+                                batteryPercentage = (batteryLevel - 3000) / 10;
+
                             timestamp = sensorMessage.Timestamp;
                             measurementType = sensorMessage.MeasurementType;
                             dataPointsCount = sensorMessage.DataPointsCount;
                             sensorIndex = sensorMessage.SensorIndex;
+                            temperature = sensorMessage.Temperature;
 
                             firstItem = false;
                         }
