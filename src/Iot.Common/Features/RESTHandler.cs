@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 using System.Net.Http;
@@ -18,7 +19,7 @@ namespace Iot.Common.REST
     public class RESTHandler
     {
         // read from all partititions
-        public static async Task<object> ExecuteFabricGETForAllPartitions(Type targetType, string targetServiceType, string servicePathAndQuery, string entityName, ServiceContext serviceContext, HttpClient httpClient, FabricClient fabricClient, IApplicationLifetime appLifetime, IServiceEventSource serviceEventSource = null)
+        public static async Task<object> ExecuteFabricGETForAllPartitions(Type targetType, string targetServiceType, string servicePathAndQuery, string entityName, ServiceContext serviceContext, HttpClient httpClient, FabricClient fabricClient, CancellationToken cancellationToken, IServiceEventSource serviceEventSource = null)
         {
             object objRet = null;
             ServiceEventSourceHelper serviceEventSourceHelper = new ServiceEventSourceHelper(serviceEventSource);
@@ -38,7 +39,7 @@ namespace Iot.Common.REST
                     .SetServicePathAndQuery(servicePathAndQuery)
                     .Build();
 
-                HttpResponseMessage response = await httpClient.GetAsync(getUrl, appLifetime.ApplicationStopping);
+                HttpResponseMessage response = await httpClient.GetAsync(getUrl, cancellationToken);
 
                 if (response.StatusCode != System.Net.HttpStatusCode.OK)
                 {
@@ -62,7 +63,7 @@ namespace Iot.Common.REST
             return objRet;
         }
 
-        public static async Task<object> ExecuteFabricGETForEntity(Type targetObjectType, string targetServiceType, string servicePathAndQuery, string entityName, ServiceContext serviceContext, HttpClient httpClient, IApplicationLifetime appLifetime, IServiceEventSource serviceEventSource = null)
+        public static async Task<object> ExecuteFabricGETForEntity(Type targetObjectType, string targetServiceType, string servicePathAndQuery, string entityName, ServiceContext serviceContext, HttpClient httpClient, CancellationToken cancellationToken, IServiceEventSource serviceEventSource = null)
         {
             object objRet = null;
             ServiceEventSourceHelper serviceEventSourceHelper = new ServiceEventSourceHelper(serviceEventSource);
@@ -76,7 +77,7 @@ namespace Iot.Common.REST
                 .SetServicePathAndQuery(servicePathAndQuery)
                 .Build();
 
-            HttpResponseMessage response = await httpClient.GetAsync(getUrl, appLifetime.ApplicationStopping);
+            HttpResponseMessage response = await httpClient.GetAsync(getUrl, cancellationToken);
 
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
@@ -98,7 +99,7 @@ namespace Iot.Common.REST
             return objRet;
         }
 
-        public static async Task<object> ExecuteFabricGET(Type targetObjectType, string targetApplicationNamePrefix, string targetSite, string targetServiceName, string servicePathAndQuery, ServiceContext serviceContext, HttpClient httpClient, IApplicationLifetime appLifetime, IServiceEventSource serviceEventSource = null)
+        public static async Task<object> ExecuteFabricGET(Type targetObjectType, string targetApplicationNamePrefix, string targetSite, string targetServiceName, string servicePathAndQuery, ServiceContext serviceContext, HttpClient httpClient, CancellationToken cancellationToken, IServiceEventSource serviceEventSource = null)
         {
             object objRet = null;
             ServiceEventSourceHelper serviceEventSourceHelper = new ServiceEventSourceHelper(serviceEventSource);
@@ -109,7 +110,7 @@ namespace Iot.Common.REST
                 .SetServicePathAndQuery(servicePathAndQuery)
                 .Build();
 
-            HttpResponseMessage response = await httpClient.GetAsync(getUrl, appLifetime.ApplicationStopping);
+            HttpResponseMessage response = await httpClient.GetAsync(getUrl, cancellationToken);
 
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
@@ -131,12 +132,12 @@ namespace Iot.Common.REST
             return objRet;
         }
 
-        public static async Task<object> ExecuteHttpGET(Type targetObjectType, String getUrl, HttpClient httpClient, IApplicationLifetime appLifetime, IServiceEventSource serviceEventSource = null)
+        public static async Task<object> ExecuteHttpGET(Type targetObjectType, String getUrl, HttpClient httpClient, CancellationToken cancellationToken, IServiceEventSource serviceEventSource = null)
         {
-            return await ExecuteHttpGET(targetObjectType, getUrl, httpClient, appLifetime, null, serviceEventSource);
+            return await ExecuteHttpGET(targetObjectType, getUrl, httpClient, cancellationToken, null, serviceEventSource);
         }
 
-        public static async Task<object> ExecuteHttpGET(Type targetObjectType, String getUrl, HttpClient httpClient, IApplicationLifetime appLifetime, IEnumerable<KeyValuePair<string, IEnumerable<string>>> additionalHeaders = null, IServiceEventSource serviceEventSource = null)
+        public static async Task<object> ExecuteHttpGET(Type targetObjectType, String getUrl, HttpClient httpClient, CancellationToken cancellationToken, IEnumerable<KeyValuePair<string, IEnumerable<string>>> additionalHeaders = null, IServiceEventSource serviceEventSource = null)
         {
             object objRet = null;
             ServiceEventSourceHelper serviceEventSourceHelper = new ServiceEventSourceHelper(serviceEventSource);
@@ -177,7 +178,7 @@ namespace Iot.Common.REST
                 }
             }
 
-            HttpResponseMessage response = await httpClient.GetAsync(getUrl, appLifetime.ApplicationStopping);
+            HttpResponseMessage response = await httpClient.GetAsync(getUrl, cancellationToken);
 
             if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
             {
@@ -205,7 +206,7 @@ namespace Iot.Common.REST
             return objRet;
         }
 
-        public static async Task<bool> ExecuteFabricPOSTForEntity(Type targetObjectType, string targetServiceType, string servicePathAndQuery, string entityName, object bodyObject, ServiceContext serviceContext, HttpClient httpClient, IApplicationLifetime appLifetime, IServiceEventSource serviceEventSource = null)
+        public static async Task<bool> ExecuteFabricPOSTForEntity(Type targetObjectType, string targetServiceType, string servicePathAndQuery, string entityName, object bodyObject, ServiceContext serviceContext, HttpClient httpClient, CancellationToken cancellationToken, IServiceEventSource serviceEventSource = null)
         {
             bool bRet = false;
             ServiceEventSourceHelper serviceEventSourceHelper = new ServiceEventSourceHelper(serviceEventSource);
@@ -227,7 +228,7 @@ namespace Iot.Common.REST
             {
                 postContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-                HttpResponseMessage response = await httpClient.PostAsync(postUrl, postContent, appLifetime.ApplicationStopping);
+                HttpResponseMessage response = await httpClient.PostAsync(postUrl, postContent, cancellationToken);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
                 {
@@ -250,12 +251,12 @@ namespace Iot.Common.REST
             return bRet;
         }
 
-        public static async Task<bool> ExecuteHttpPOST(String postUrl, object bodyObject, HttpClient httpClient, IApplicationLifetime appLifetime, IServiceEventSource serviceEventSource = null)
+        public static async Task<bool> ExecuteHttpPOST(String postUrl, object bodyObject, HttpClient httpClient, CancellationToken cancellationToken, IServiceEventSource serviceEventSource = null)
         {
-            return await ExecuteHttpPOST(postUrl, bodyObject, httpClient, appLifetime, null, serviceEventSource);
+            return await ExecuteHttpPOST(postUrl, bodyObject, httpClient, cancellationToken, null, serviceEventSource);
         }
 
-        public static async Task<bool> ExecuteHttpPOST(String postUrl, object bodyObject, HttpClient httpClient, IApplicationLifetime appLifetime, IEnumerable<KeyValuePair<string, IEnumerable<string>>> additionalHeaders = null, IServiceEventSource serviceEventSource = null)
+        public static async Task<bool> ExecuteHttpPOST(String postUrl, object bodyObject, HttpClient httpClient, CancellationToken cancellationToken, IEnumerable<KeyValuePair<string, IEnumerable<string>>> additionalHeaders = null, IServiceEventSource serviceEventSource = null)
         {
             bool bRet = false;
             ServiceEventSourceHelper serviceEventSourceHelper = new ServiceEventSourceHelper(serviceEventSource);
@@ -319,7 +320,7 @@ namespace Iot.Common.REST
                 }
             }
 
-            HttpResponseMessage response = await httpClient.PostAsync(postUrl, postContent, appLifetime.ApplicationStopping);
+            HttpResponseMessage response = await httpClient.PostAsync(postUrl, postContent, cancellationToken);
 
             if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
             {

@@ -11,6 +11,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
     using System.Configuration;
     using System.Diagnostics;
     using System.Fabric;
+    using System.Fabric.Query;
     using System.IO;
     using System.Text;
     using System.Threading.Tasks;
@@ -18,6 +19,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
     using System.Linq;
     using System.Net.Http.Headers;
 
+    using Newtonsoft.Json;
 
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.AspNetCore.Mvc;
@@ -51,6 +53,8 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
         private static readonly string GroupId = appSettings["groupId"];
         private static readonly string ReportId = appSettings["reportId"];
         private static readonly string DatasetId = appSettings["datasetId"];
+
+        private static readonly string DevicesDataStream01URL = "https://api.powerbi.com/beta/3d2d2b6f-061a-48b6-b4b3-9312d687e3a1/datasets/ac227ec0-5bfe-4184-85b1-a9643778f1e4/rows?key=zrg4K1om2l4mj97GF6T3p0ze3SlyynHWYRQMdUUSC0BWetzC7bF3RZgPMG4ukznAhGub5aPsDXuQMq540X8hZA%3D%3D";
 
         public HomeController(StatelessServiceContext context, FabricClient fabricClient, HttpClient httpClient, IApplicationLifetime appLifetime )
         {
@@ -119,6 +123,24 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
             }
         }
 
+        [HttpGet]
+        [Route("run/streamReport/parm/{reportUrl}")]
+        public IActionResult EmbedStreamReport(string reportUrl)
+        {
+            // Manage session and Context
+            HttpServiceUriBuilder contextUri = new HttpServiceUriBuilder().SetServiceName(this.context.ServiceName);
+
+            if (HTTPHelper.IsSessionExpired(HttpContext, this))
+            {
+                return Ok(contextUri.GetServiceNameSiteHomePath());
+            }
+            else
+            {
+                this.ViewData["EmbedURL"] = reportUrl;
+                return this.View();
+            }
+        }
+
         [HttpPost]
         [Route("[Controller]/login")]
         public ActionResult Login(UserProfile objUser)
@@ -145,7 +167,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                                                     objUser,
                                                     this.context,
                                                     this.httpClient,                                                 
-                                                    this.appLifetime,
+                                                    this.appLifetime.ApplicationStopping,
                                                     ServiceEventSource.Current);
                         if (result.Result)
                             userAllowedToLogin = true;
@@ -161,7 +183,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                                                     "user",
                                                     this.context,
                                                     this.httpClient,
-                                                    this.appLifetime,
+                                                    this.appLifetime.ApplicationStopping,
                                                     ServiceEventSource.Current);
                         if (userObject != null)
                         {
@@ -335,7 +357,49 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
                     List<DeviceViewModelList> deviceViewModelList = await DevicesController.GetDevicesDataAsync(reportParm, httpClient, fabricClient, appLifetime );
 
-                    var refreshDataresult = await ReportsDataHandlercs.PublishReportDataFor(reportUniqueId, reportParm, "client01", context, httpClient, appLifetime, ServiceEventSource.Current, deviceViewModelList);
+
+/*                    List<DeviceViewModelList> deviceViewModelList = new List<DeviceViewModelList>();
+                    ServiceUriBuilder uriBuilder = new ServiceUriBuilder(Names.InsightDataServiceName);
+                    Uri serviceUri = uriBuilder.Build();
+
+                    // service may be partitioned.
+                    // this will aggregate device IDs from all partitions
+                    ServicePartitionList partitions = await fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
+
+                    foreach (Partition partition in partitions)
+                    {
+                        Uri getUrl = new HttpServiceUriBuilder()
+                            .SetServiceName(serviceUri)
+                            .SetPartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey)
+                            .SetServicePathAndQuery($"/api/devices{reportParm}")
+                            .Build();
+
+                        HttpResponseMessage response = await httpClient.GetAsync(getUrl, appLifetime.ApplicationStopping);
+
+                        if (response.StatusCode == System.Net.HttpStatusCode.OK)
+                        {
+                            JsonSerializer serializer = new JsonSerializer();
+                            using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
+                            {
+                                using (JsonTextReader jsonReader = new JsonTextReader(streamReader))
+                                {
+                                    List<DeviceViewModelList> localResult = serializer.Deserialize<List<DeviceViewModelList>>(jsonReader);
+
+                                    if (localResult != null)
+                                    {
+                                        foreach (DeviceViewModelList device in localResult)
+                                        {
+                                            if (device.DeviceId.Equals(device.DeviceId, StringComparison.InvariantCultureIgnoreCase))
+                                                deviceViewModelList.Add(device);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+*/
+
+                    var refreshDataresult = await ReportsDataHandler.PublishReportDataFor(reportUniqueId, DevicesDataStream01URL, deviceViewModelList, context, httpClient, appLifetime.ApplicationStopping, ServiceEventSource.Current );
 
                     if (refreshDataresult)
                     {

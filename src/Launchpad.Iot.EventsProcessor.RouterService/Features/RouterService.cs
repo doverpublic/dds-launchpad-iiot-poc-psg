@@ -1,4 +1,5 @@
-﻿// ------------------------------------------------------------
+﻿
+// ------------------------------------------------------------
 //  Copyright (c) Dover Corporation.  All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
@@ -118,6 +119,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                     .Parameters["ProcessOnlyFutureEvents"]
                     .Value.ToLower();
 
+            ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - {ServiceUniqueId} - RunAsync - Starting service  - Process Only Future Events[{iotHubProcessOnlyFutureEvents}] - IoTHub Connection String[{iotHubConnectionString}]");
 
             // These Reliable Dictionaries are used to keep track of our position in IoT Hub.
             // If this service fails over, this will allow it to pick up where it left off in the event stream.
@@ -181,7 +183,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                                 }
                                 else
                                 {
-                                    ServiceEventSource.Current.ServiceMessage( this.Context, $"RouterService - {ServiceUniqueId} - RunAsync - Received event data from hub '{eventHubReceiver.Name}' - Partition '{eventData.PartitionKey}' Sequence # '{eventData.SequenceNumber}'");
+                                    ServiceEventSource.Current.ServiceMessage( this.Context, $"RouterService - {ServiceUniqueId} - RunAsync - Received event data from hub '{eventHubReceiver.Name}' - Enqueued Time[{eventData.EnqueuedTimeUtc}] - Partition '{eventData.PartitionKey}' Sequence # '{eventData.SequenceNumber}'");
                                 }
 
                                 string targetSite = (string)eventData.Properties[global::Iot.Common.Names.EventKeyFieldTargetSite];
@@ -286,6 +288,7 @@ namespace Launchpad.Iot.EventsProcessor.RouterService
                         }
                         catch (Exception ex)
                         {
+                            IsConnected = false;
                             string url = postUrl == null ? "Url undefined" : postUrl.ToString();
                             //ServiceEventSource.Current.ServiceMessage(this.Context, $"RouterService - {ServiceUniqueId} - RunAsync - General Exception Url=[{url}]- Message=[{ex}] - Inner Exception=[{ex.InnerException.Message ?? "ex.InnerException is null"}] Call Stack=[{ex.StackTrace ?? "ex.StackTrace is null"}] - Stack trace of inner exception=[{ex.InnerException.StackTrace ?? "ex.InnerException.StackTrace is null"}]");
 

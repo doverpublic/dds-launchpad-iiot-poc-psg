@@ -22,6 +22,7 @@
             var path = window.location.pathname.replace(/\/+$/, "");
             var $result = $('#result');
             var refreshRate = 3000;
+            var analysisReportUrl = "https://app.powerbi.com/view?r=eyJrIjoiYjEzNzY4MTMtNjU0Mi00OGJiLWIyZjgtYjU4ZWYwMjVhZGZlIiwidCI6IjNkMmQyYjZmLTA2MWEtNDhiNi1iNGIzLTkzMTJkNjg3ZTNhMSIsImMiOjN9";
 
             function last(path) {
                 var s = path.replace(/\/+$/, "").split('/');
@@ -38,11 +39,12 @@
 
                         //<a id="myLink" title="Click to do something" href = "#" onclick= "MyFunction();return false;" > link text</a >
                         var reportPath = '/' + '@ViewData["TargetSite"]' + '/run/report/parm/';
+                        var reportStreamPath = '/' + '@ViewData["TargetSite"]' + '/run/streamReport/parm/' + analysisReportUrl;
 
                         $deviceList.html('');
 
                         $deviceList.append(
-                            '<h4>Last Posted Events By Device</h4>' +
+                            '<h4>Last Posted Events By Device</h4>' + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a id="runAnalysisReport" href="#" onclick="popitup(' + "'" + reportStreamPath + "','Analysis Report');return false;" + '">View Analysis Report</a>' +
                             '<hr>'
                         );
 
@@ -66,8 +68,8 @@
 
                                 $deviceList.append(
 									'<div class="deviceInfo"><legend><label>Sensor Index:&nbsp;' + evt.sensorIndex + '</label></legend>' +
-                                    '<li><label>Frequency:</label>&nbsp;' + evt.frequency + '</li>' +
                                     '<li><label>Magnitude:</label>&nbsp;' + evt.magnitude + '</li>' +
+                                    '<li><label>Frequency:</label>&nbsp;' + evt.frequency + '</li>' +
                                     '</div>'
                                 )
                             }

@@ -4,6 +4,8 @@
     <TargetFramework>net461</TargetFramework>
     <IsServiceFabricServiceProject>True</IsServiceFabricServiceProject>
     <RuntimeIdentifier>win7-x64</RuntimeIdentifier>
+    <ApplicationInsightsResourceId>/subscriptions/76049394-6881-469f-82ff-a5336861d0a5/resourcegroups/Launchpad-IIoT-POC01%28DEV%29/providers/microsoft.insights/components/POC01-DEV-ApplicationInsights</ApplicationInsightsResourceId>
+    <ApplicationInsightsAnnotationResourceId>/subscriptions/76049394-6881-469f-82ff-a5336861d0a5/resourcegroups/Launchpad-IIoT-POC01%28DEV%29/providers/microsoft.insights/components/POC01-DEV-ApplicationInsights</ApplicationInsightsAnnotationResourceId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -34,6 +36,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Iot.Common\Iot.Common.csproj" />
     <ProjectReference Include="..\TargetSolution\TargetSolution.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <WCFMetadata Include="Connected Services" />
   </ItemGroup>
 
 </Project>

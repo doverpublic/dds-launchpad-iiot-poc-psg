@@ -11,8 +11,10 @@ namespace Launchpad.Iot.Insight.DataService
     using System.Threading.Tasks;
     using Microsoft.ApplicationInsights;
 
+    using global::Iot.Common;
+
     [EventSource(Name = "DoverDigital-Launchpad.IoT.Insight.DataService")]
-    internal sealed class ServiceEventSource : EventSource
+    internal sealed class ServiceEventSource : EventSource, IServiceEventSource
     {
         public static readonly ServiceEventSource Current = new ServiceEventSource();
 

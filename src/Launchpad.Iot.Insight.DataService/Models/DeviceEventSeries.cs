@@ -21,7 +21,8 @@ namespace Launchpad.Iot.Insight.DataService.Models
             this.DeviceId = deviceId;
             this.EventList = new List<DeviceEvent>();
 
-            this.EventList.AddRange(events);
+            foreach (DeviceEvent evnt in events)
+                this.EventList.Add(new DeviceEvent(evnt.Timestamp, evnt.MeasurementType, evnt.SensorIndex, evnt.Temperature, evnt.BatteryLevel, evnt.DataPointsCount, evnt.Frequency, evnt.Magnitude));
 
             this.Events = this.EventList;
 
@@ -35,7 +36,7 @@ namespace Launchpad.Iot.Insight.DataService.Models
         public string DeviceId { get; private set; }
 
         [DataMember]
-        public DateTimeOffset Timestamp { get; private set; }
+        public DateTimeOffset Timestamp { get; set; }
 
         [DataMember]
         public IEnumerable<DeviceEvent> Events { get; private set; }

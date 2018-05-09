@@ -36,8 +36,11 @@ namespace Iot.Common
         public const int TransactionsRetryCount = 10;
         public const int TransactionRetryWaitIntervalInMills = 200;
 
+        public const int DataServiceCacheSizeForHistoryObjects = 20;
+
         public const int IoTHubRetryWaitIntervalsInMills = 60000;
         public const int EventsProcessorOffsetInterval = 5;
 
+        public const int ExtenderStandardRetryWaitIntervalsInMills = 60000;
     }
 }

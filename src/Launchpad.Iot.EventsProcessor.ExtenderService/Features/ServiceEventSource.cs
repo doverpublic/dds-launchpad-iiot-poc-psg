@@ -8,11 +8,12 @@ using System.Threading.Tasks;
 using Microsoft.ServiceFabric.Services.Runtime;
 using Microsoft.ApplicationInsights;
 
+using global::Iot.Common;
 
 namespace Launchpad.Iot.EventsProcessor.ExtenderService
 {
-    [EventSource(Name = "DoverDigital-Launchpad.Iot.EventsProcessor.RouterService")]
-    internal sealed class ServiceEventSource : EventSource
+    [EventSource(Name = "DoverDigital-Launchpad.Iot.EventsProcessor.ExtenderService")]
+    internal sealed class ServiceEventSource : EventSource, IServiceEventSource
     {
         public static readonly ServiceEventSource Current = new ServiceEventSource();
 

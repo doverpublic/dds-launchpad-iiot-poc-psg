@@ -7,15 +7,15 @@ namespace Launchpad.Iot.Admin.WebService.Models
 {
     public class EventsProcessorApplicationParams
     {
-        public EventsProcessorApplicationParams(string dataServiceURLs, string iotHubConnectionString, string iotHubProcessOnlyFutureEvents, int partitionCount, string version)
+        public EventsProcessorApplicationParams(string publishDataServiceURLs, string iotHubConnectionString, string iotHubProcessOnlyFutureEvents, int partitionCount, string version)
         {
-            this.DataServiceURLs = dataServiceURLs;
+            this.PublishDataServiceURLs = publishDataServiceURLs;
             this.IotHubConnectionString = iotHubConnectionString;
             this.IotHubProcessOnlyFutureEvents = iotHubProcessOnlyFutureEvents;
             this.Version = version;
         }
 
-        public string DataServiceURLs { get; set; }
+        public string PublishDataServiceURLs { get; set; }
 
         public string IotHubConnectionString { get; set; }
 

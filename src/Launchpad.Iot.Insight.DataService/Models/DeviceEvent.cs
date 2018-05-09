@@ -19,8 +19,14 @@ namespace Launchpad.Iot.Insight.DataService.Models
             this.Temperature = temperature;
             this.BatteryLevel = batteryLevel;
             this.DataPointsCount = dataPointsCount;
-            this.Frequency = frequency;
-            this.Magnitude = magnitude;
+            this.Frequency = new int[frequency.Length];
+            this.Magnitude = new int[magnitude.Length];
+
+            for (int index = 0; index < frequency.Length; index++)
+                this.Frequency[index] = frequency[index];
+
+            for (int index = 0; index < magnitude.Length; index++)
+                this.Magnitude[index] = magnitude[index];
         }
 
         [DataMember]
@@ -36,8 +42,9 @@ namespace Launchpad.Iot.Insight.DataService.Models
         [DataMember]
         public int DataPointsCount { get; private set; }
         [DataMember]
-        public int[] Frequency { get; private set; }
+        public int[] Frequency { get; protected set; }
         [DataMember]
-        public int[] Magnitude { get; private set; }
+        public int[] Magnitude { get; protected set; }
+
     }
 }

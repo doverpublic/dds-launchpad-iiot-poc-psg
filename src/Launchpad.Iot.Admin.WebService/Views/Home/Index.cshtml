@@ -12,7 +12,7 @@
                 <label class="label">Type Version</label><input id="iotHubAppTypeVersion" type="text" placeholder="1.0.0" />
                 <label class="label">Iot Hub connection string</label><input id="iotHubConnectionString" type="text" placeholder="" />
                 <label class="label">Process Only Future Events</label><input id="iotHubProcessOnlyFutureEvents" type="text" placeholder="" />
-                <label class="label">Data Service URLs</label><input id="extenderProcessorDataServiceURLs" type="text" placeholder="" />
+                <label class="label">Publish Data Service URLs</label><input id="publishDataServiceURLs" type="text" placeholder="" />
                 <button id="addIotHubButton">Add</button>
             </div>
         </div>
@@ -109,7 +109,7 @@
 
                 var iotHubString = '';
                 var processOnlyFutureRecords = '';
-                var dataServiceURLs = '';
+                var publishDataServiceURLs = '';
                 for (var i = 0; i < application.applicationParameters.length; i++) {
                     if (application.applicationParameters[i].name == 'IotHubConnectionString') {
                         iotHubString = application.applicationParameters[i].value;
@@ -117,8 +117,8 @@
                     if (application.applicationParameters[i].name == 'IotHubProcessOnlyFutureEvents') {
                         processOnlyFutureRecords = application.applicationParameters[i].value;
                     }
-                    if (application.applicationParameters[i].name == 'extenderProcessorDataServiceURLs') {
-                        dataServiceURLs = application.applicationParameters[i].value;
+                    if (application.applicationParameters[i].name == 'PublishDataServiceURLs') {
+                        publishDataServiceURLs = application.applicationParameters[i].value;
                     }
                 }
 
@@ -131,7 +131,7 @@
                     + '<li><label class="label">Version:</label>' + application.applicationTypeVersion + '</li>'
                     + '<li><label class="label">Iot Hub:</label><blockquote>' + iotHubString + '<blockquote></li>'
                     + '<li><label class="label">Process Only Future Events:</label>' + processOnlyFutureRecords + '</li>'
-                    + '<li><label class="label">Data Service URLs:</label>' + dataServiceURLs + '</li>'
+                    + '<li><label class="label">Publish Data Service URLs:</label>' + publishDataServiceURLs + '</li>'
                     + '</ul>'
                     + '<button onclick="removeApplication(' + "'" + deleteApiUrl + "'" + ')">Remove</button>'
                     + '</div></li>'
@@ -164,7 +164,7 @@
                 var params = {};
                 params.IotHubConnectionString = $('#iotHubConnectionString').val();
                 params.IotHubProcessOnlyFutureEvents = $('#iotHubProcessOnlyFutureEvents').val();
-                params.ExtenderProcessorDataServiceURLs = $('#extenderProcessorDataServiceURLs').val();
+                params.PublishDataServiceURLs = $('#publishDataServiceURLs').val();
                 params.Version = $('#iotHubAppTypeVersion').val();;
 
                 $.ajax({

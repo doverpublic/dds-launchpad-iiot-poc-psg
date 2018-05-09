@@ -40,19 +40,13 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         public async Task<IActionResult> GetAsync()
         {
             List<object> devices = new List<object>();
-            IReliableDictionary<string, DeviceEventSeries> storeLastCompletedMessage = null;
-
-            using (ITransaction tx = this.stateManager.CreateTransaction())
-            {
-                storeLastCompletedMessage = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEventSeries>>(tx, TargetSolution.Names.EventLatestDictionaryName);
-                await tx.CommitAsync();
-            }
+            IReliableDictionary<string, DeviceEventSeries> storeLastCompletedMessage = storeLastCompletedMessage = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEventSeries>>(TargetSolution.Names.EventLatestDictionaryName);
 
             using (ITransaction tx = this.stateManager.CreateTransaction())
             {
                 try
                 {
-                    IAsyncEnumerable<KeyValuePair<string, DeviceEventSeries>> enumerable = await storeLastCompletedMessage.CreateEnumerableAsync(tx);
+                    IAsyncEnumerable<KeyValuePair<string, DeviceEventSeries>> enumerable = await storeLastCompletedMessage.CreateEnumerableAsync(tx,EnumerationMode.Ordered);
                     IAsyncEnumerator<KeyValuePair<string, DeviceEventSeries>> enumerator = enumerable.GetAsyncEnumerator();
 
                     while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
@@ -83,58 +77,64 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         }
 
         [HttpGet]
+        [Route("history/interval/{searchInterval}")]
+        [Route("history/{deviceId}/interval/{searchInterval}")]
+        public async Task<IActionResult> SearchDevicesHistory( string deviceId = null, int searchInterval = 86400000)
+        {
+            List<object> deviceMessages = new List<object>();
+            IReliableDictionary<DateTimeOffset, DeviceEventSeries> storeCompletedMessages = storeCompletedMessages = await this.stateManager.GetOrAddAsync<IReliableDictionary<DateTimeOffset, DeviceEventSeries>>(TargetSolution.Names.EventHistoryDictionaryName);
+ 
+            if( storeCompletedMessages != null )
+            {
+               DateTimeOffset intervalToSearch = DateTimeOffset.UtcNow.AddMilliseconds(searchInterval * (-1));
+
+               using (ITransaction tx = this.stateManager.CreateTransaction())
+                {
+                    IAsyncEnumerable<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerable = await storeCompletedMessages.CreateEnumerableAsync(tx, key => key > intervalToSearch, EnumerationMode.Ordered);
+                    IAsyncEnumerator<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerator = enumerable.GetAsyncEnumerator();
+
+                    while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
+                    {
+                        deviceMessages.Add(
+                            new
+                            {
+                                DeviceId = enumerator.Current.Value.DeviceId,
+                                enumerator.Current.Value.Events
+                            });
+                    }
+                    await tx.CommitAsync();
+                }
+            }
+
+            return this.Ok(deviceMessages);
+        }
+
+        [HttpGet]
         [Route("queue/length")]
         public async Task<IActionResult> GetQueueLengthAsync()
         {
             long count = -1;
-            IReliableDictionary<string, EdgeDevice> storeDeviceCounters = null;
+            IReliableDictionary<DateTimeOffset, DeviceEventSeries> storeCompletedMessages = await this.stateManager.GetOrAddAsync<IReliableDictionary<DateTimeOffset, DeviceEventSeries>>(TargetSolution.Names.EventHistoryDictionaryName);
 
             using (ITransaction tx = this.stateManager.CreateTransaction())
             {
                 try
                 {
-                    storeDeviceCounters = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, EdgeDevice>>(tx, TargetSolution.Names.EventCountsDictionaryName);
+                    count = await storeCompletedMessages.GetCountAsync(tx);
                     await tx.CommitAsync();
+
+                    count += EventsController.getCurentStoreCacheCount();
                 }
                 catch (TimeoutException te)
                 {
                     // transient error. Could Retry if one desires .
-                    ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - GetQueueLengthAsync - Creating Trasaction - TimeoutException : Message=[{te.ToString()}]");
+                    ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - GetQueueLengthAsync - TimeoutException : Message=[{te.ToString()}]");
                     tx.Abort();
                 }
                 catch (Exception ex)
                 {
-                    ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - GetQueueLengthAsync - Creating Trasaction - General Exception - Message=[{0}]", ex);
+                    ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - GetQueueLengthAsync - General Exception - Message=[{0}]", ex);
                     tx.Abort();
-                }
-            }
-
-            if(storeDeviceCounters != null )
-            {
-                using (ITransaction tx = this.stateManager.CreateTransaction())
-                {
-                    try
-                    {
-                        IAsyncEnumerable<KeyValuePair<string, EdgeDevice>> enumerable = await storeDeviceCounters.CreateEnumerableAsync(tx);
-                        IAsyncEnumerator<KeyValuePair<string, EdgeDevice>> enumerator = enumerable.GetAsyncEnumerator();
-
-                        while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
-                        {
-                            count += enumerator.Current.Value.MessagesCount;
-                        }
-                        await tx.CommitAsync();
-                    }
-                    catch (TimeoutException te)
-                    {
-                        // transient error. Could Retry if one desires .
-                        ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - GetQueueLengthAsync - TimeoutException : Message=[{te.ToString()}]");
-                        tx.Abort();
-                    }
-                    catch (Exception ex)
-                    {
-                        ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - GetQueueLengthAsync - General Exception - Message=[{0}]", ex);
-                        tx.Abort();
-                    }
                 }
             }
 

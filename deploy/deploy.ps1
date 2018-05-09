@@ -249,7 +249,7 @@ if ($ApplicationToDeploy -eq 'All'  -or $ApplicationToDeploy -eq 'EventsProcesso
            {
                Publish-UpgradedServiceFabricApplication -ApplicationName "$ApplicationInstanceToUpgrade" `
                 -ApplicationPackagePath "$EventsProcessorApplicationDir\pkg\$Configuration" `
-                -Action "RegisterAndUpgrade" `
+                -Action "Register" `
                 -SkipPackageValidation:$SkipPackageValidation `
                 -CopyPackageTimeoutSec $CopyPackageTimeoutSec `
                 -ErrorAction Continue `
@@ -303,11 +303,10 @@ if(!$ProcessError)
         if ($IsUpgrade)
         {
            echo ">>>>>>> About To Start Publishing for $InsightApplicationDir [UPGRADE]<<<<<<<<<"
-           echo ">>>>>>> About To Start Publishing for $EventsProcessorApplicationDir [UPGRADE]<<<<<<<<<"
            echo ">>>>>>> Parameters <<<<<<<<<<<<"
            echo ApplicationName=["$ApplicationInstanceToUpgrade"]
-           echo ApplicationPackagePath=["$EventsProcessorApplicationDir\pkg\$Configuration"]
-           echo ApplicationParameterFilePath=["$EventsProcessorApplicationDir\pkg\$Configuration\$ParametersfileName"]
+           echo ApplicationPackagePath=["$InsightApplicationDir\pkg\$Configuration"]
+           echo ApplicationParameterFilePath=["$InsightApplicationDir\pkg\$Configuration\$ParametersfileName"]
            echo SkipPackageValidation=[$SkipPackageValidation]
            echo CopyPackageTimeoutSec=[$CopyPackageTimeoutSec]
            echo ">>>>>>>>>>>>>><<<<<<<<<<<<<<<<<"

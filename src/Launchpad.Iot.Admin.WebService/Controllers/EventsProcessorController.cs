@@ -65,6 +65,7 @@ namespace Launchpad.Iot.Admin.WebService.Controllers
             NameValueCollection appInstanceParameters = new NameValueCollection();
             appInstanceParameters["IotHubConnectionString"] = parameters.IotHubConnectionString;
             appInstanceParameters["IotHubProcessOnlyFutureEvents"] = parameters.IotHubProcessOnlyFutureEvents;
+            appInstanceParameters["PublishDataServiceURLs"] = parameters.PublishDataServiceURLs;
 
             ApplicationDescription application = new ApplicationDescription(
                 new Uri($"{Names.EventsProcessorApplicationPrefix}/{name}"),
@@ -91,26 +92,22 @@ namespace Launchpad.Iot.Admin.WebService.Controllers
 
             await this.fabricClient.ServiceManager.CreateServiceAsync(service, this.operationTimeout, this.appLifetime.ApplicationStopping);
 
-            // Now it is time to create the ExtenderService
-            // Application parameters are passed to the Extender Processing application instance.
-            appInstanceParameters = new NameValueCollection();
-            appInstanceParameters["DataServiceURLs"] = parameters.DataServiceURLs;
-
-
-            // Next, create named instances of the services that run in the application.
-            serviceNameUriBuilder = new ServiceUriBuilder(application.ApplicationName.ToString(), Names.EventsProcessorExtenderServiceName);
-
-
-            StatelessServiceDescription extenderService = new StatelessServiceDescription()
+            if(parameters.PublishDataServiceURLs != null && parameters.PublishDataServiceURLs.Length > 0 )
             {
-                ApplicationName = application.ApplicationName,
-                InstanceCount = 1,
-                PartitionSchemeDescription = new SingletonPartitionSchemeDescription(),
-                ServiceName = serviceNameUriBuilder.Build(),
-                ServiceTypeName = Names.EventsProcessorExtenderServiceTypeName
-            };
+                // Next, create named instances of the services that run in the application.
+                serviceNameUriBuilder = new ServiceUriBuilder(application.ApplicationName.ToString(), Names.EventsProcessorExtenderServiceName);
 
-            await this.fabricClient.ServiceManager.CreateServiceAsync(extenderService, this.operationTimeout, this.appLifetime.ApplicationStopping);
+                StatelessServiceDescription extenderService = new StatelessServiceDescription()
+                {
+                    ApplicationName = application.ApplicationName,
+                    InstanceCount = 1,
+                    PartitionSchemeDescription = new SingletonPartitionSchemeDescription(),
+                    ServiceName = serviceNameUriBuilder.Build(),
+                    ServiceTypeName = Names.EventsProcessorExtenderServiceTypeName
+                };
+
+                await this.fabricClient.ServiceManager.CreateServiceAsync(extenderService, this.operationTimeout, this.appLifetime.ApplicationStopping);
+            }
             return this.Ok();
         }
 

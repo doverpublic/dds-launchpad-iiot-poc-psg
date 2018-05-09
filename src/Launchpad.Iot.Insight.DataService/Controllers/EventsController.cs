@@ -9,6 +9,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Linq;
+    using System.Net.Http;
     using System.Threading;
     using System.Threading.Tasks;
     using Iot.Insight.DataService.Models;
@@ -19,6 +20,8 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
     using Microsoft.AspNetCore.Hosting;
 
     using global::Iot.Common;
+    using TargetSolution;
+    using Launchpad.Iot.PSG.Model;
 
     [Route("api/[controller]")]
     public class EventsController : Controller
@@ -27,7 +30,9 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         private readonly IReliableStateManager stateManager;
         private readonly StatefulServiceContext context;
 
-        private TaskSynchronizationScope _lock = new TaskSynchronizationScope();
+        HttpClient httpClient = new HttpClient();
+
+        private static Queue<DeviceEventSeries> storageCache = new Queue<DeviceEventSeries>();
 
         public EventsController(IReliableStateManager stateManager, StatefulServiceContext context, IApplicationLifetime appLifetime)
         {
@@ -37,11 +42,19 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         }
 
 
+        public static int getCurentStoreCacheCount()
+        {
+            return storageCache.Count;
+        }
+
         [HttpPost]
         [Route("{deviceId}")]
         public async Task<IActionResult> Post(string deviceId, [FromBody] IEnumerable<DeviceEvent> events)
         {
             IActionResult resultRet = this.Ok();
+            DateTime durationCounter = DateTime.UtcNow;
+            TimeSpan duration;
+            string traceId = FnvHash.GetUniqueId();
 
             if (String.IsNullOrEmpty(deviceId))
             {
@@ -60,10 +73,6 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                 return this.BadRequest();
             }
 
-            ServiceEventSource.Current.ServiceMessage(
-                this.context,
-                $"Data Service - Received {events.Count()} events from device {deviceId}");
-
             DeviceEvent evt = events.FirstOrDefault();
 
             if (evt == null)
@@ -71,37 +80,24 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                 return this.Ok();
             }
 
+            DateTimeOffset eventTimetamp = evt.Timestamp;
+
+            ServiceEventSource.Current.ServiceMessage(
+                                            this.context,
+                                            $"Data Service - Received {events.Count()} events from device {deviceId} with timestamp [{eventTimetamp}]- Traceid[{traceId}]");
+
             DeviceEventSeries eventList = new DeviceEventSeries(deviceId, events);
 
-            IReliableDictionary<string, DeviceEventSeries> storeInProgressMessage = null;
-            IReliableDictionary<DateTimeOffset, DeviceEventSeries> storeCompletedMessages = null;
-            IReliableDictionary<string, EdgeDevice> storeDeviceCounters = null;
+            IReliableDictionary<string, DeviceEventSeries>  storeLastCompletedMessage = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEventSeries>>(TargetSolution.Names.EventLatestDictionaryName);
+            IReliableDictionary<string, DeviceEventSeries>  storeInProgressMessage = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEventSeries>>(TargetSolution.Names.EventInProgressDictionaryName);
+            IReliableDictionary<DateTimeOffset, DeviceEventSeries> storeCompletedMessages = await this.stateManager.GetOrAddAsync<IReliableDictionary<DateTimeOffset, DeviceEventSeries>>(TargetSolution.Names.EventHistoryDictionaryName);
 
-            using (ITransaction tx = this.stateManager.CreateTransaction())
-            {
-                storeInProgressMessage = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEventSeries>>(tx, TargetSolution.Names.EventInProgressDictionaryName);
-                await tx.CommitAsync();
-            }
+            string transactionType = ""; int retryCounter = 1;
+            DeviceEventSeries completedMessage = null;
+            DateTimeOffset messageTimestamp = DateTimeOffset.UtcNow;
 
-            using (ITransaction tx = this.stateManager.CreateTransaction())
-            {
-                storeCompletedMessages = await this.stateManager.GetOrAddAsync<IReliableDictionary<DateTimeOffset, DeviceEventSeries>>(tx, TargetSolution.Names.EventHistoryDictionaryName);
-                await tx.CommitAsync();
-            }
-
-            using (ITransaction tx = this.stateManager.CreateTransaction())
-            {
-                storeDeviceCounters = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, EdgeDevice>>(tx, TargetSolution.Names.EventCountsDictionaryName);
-                await tx.CommitAsync();
-            }
-
-            string transactionType = "";
             try
             {
-                int retryCounter = 1;
-                DeviceEventSeries completedMessage = null;
-                EdgeDevice device = null;
-
                 while (retryCounter > 0)
                 {
                     transactionType = "";
@@ -110,12 +106,6 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                         try
                         { 
                             transactionType = "In Progress Message";
-                            ConditionalValue<EdgeDevice> deviceValue = await storeDeviceCounters.TryGetValueAsync(tx, deviceId, LockMode.Update);
-
-                            if (deviceValue.HasValue)
-                                device = deviceValue.Value;
-                            else
-                                device = new EdgeDevice(deviceId);
 
                             await storeInProgressMessage.AddOrUpdateAsync(
                                     tx,
@@ -126,75 +116,74 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                                         return ManageDeviceEventSeriesContent(currentValue, eventList, out completedMessage);
                                     });
 
+                            duration = DateTime.UtcNow.Subtract(durationCounter);
+                            ServiceEventSource.Current.ServiceMessage(
+                                this.context,
+                                $"Data Service Received {events.Count()} events from device {deviceId} - Finished [{transactionType}] - Duration [{duration.TotalMilliseconds}] mills - Traceid[{traceId}]");
+
                             if (completedMessage != null)
                             {
                                 bool tryAgain = true;
+                                messageTimestamp = completedMessage.Timestamp;
+                                transactionType = "Completed Message";
 
                                 while (tryAgain)
                                 {
-                                    tryAgain = await storeCompletedMessages.ContainsKeyAsync(tx, completedMessage.Timestamp);
+                                    ConditionalValue<DeviceEventSeries> storedCompletedMessageValue = await storeCompletedMessages.TryGetValueAsync(tx, messageTimestamp, LockMode.Default);
 
-                                    if (tryAgain)
+                                    duration = DateTime.UtcNow.Subtract(durationCounter);
+                                    ServiceEventSource.Current.ServiceMessage(
+                                        this.context,
+                                        $"Message Completed (Look for duplication - result [{storedCompletedMessageValue.HasValue}] from device {deviceId} - Starting [{transactionType}] - Duration [{duration.TotalMilliseconds}] mills - Traceid[{traceId}]");
+
+                                    if (storedCompletedMessageValue.HasValue)
                                     {
-                                        completedMessage.Timestamp.AddMilliseconds(10);
-                                        ServiceEventSource.Current.ServiceMessage(
-                                            this.context,
-                                            $"Data Service - Message with timestamp {completedMessage.Timestamp.ToString()} from device {deviceId} already present in the store");
+                                        DeviceEventSeries storedCompletedMessage = storedCompletedMessageValue.Value;
+
+                                        if (completedMessage.DeviceId.Equals(storedCompletedMessage.DeviceId) )
+                                        {
+                                            tryAgain = false; // this means this record was already saved before - no duplication necessary
+                                            ServiceEventSource.Current.ServiceMessage(
+                                                this.context,
+                                                $"Data Service - Message with timestamp {completedMessage.Timestamp.ToString()} from device {deviceId} already present in the store - (Ignore this duplicated record) - Traceid[{traceId}]");
+                                            completedMessage = null;
+                                        }
+                                        else
+                                        {
+                                            // this is a true collision between information from different devices
+                                            messageTimestamp.AddMilliseconds(10);
+                                            ServiceEventSource.Current.ServiceMessage(
+                                                this.context,
+                                                $"Data Service - Message with timestamp {completedMessage.Timestamp.ToString()} from device {deviceId} already present in the store - (Adjusted the timestamp) - Traceid[{traceId}]");
+                                        }
                                     }
                                     else
                                     {
-                                        transactionType = "Completed Message";
-                                        await storeCompletedMessages.AddOrUpdateAsync(
+                                        await storeLastCompletedMessage.AddOrUpdateAsync(
                                             tx,
-                                            completedMessage.Timestamp,
+                                            completedMessage.DeviceId,
                                             completedMessage,
                                             (key, currentValue) =>
                                             {
                                                 return completedMessage;
                                             }
                                         );
+                                        duration = DateTime.UtcNow.Subtract(durationCounter);
                                         ServiceEventSource.Current.ServiceMessage(
                                             this.context,
-                                            $"Data Service - Saved Message with timestamp {completedMessage.Timestamp.ToString()} from device {deviceId}");
+                                            $"Data Service - Saved Message to Last Complete Message Store with timestamp [{completedMessage.Timestamp.ToString()}] indexed by timestamp[{messageTimestamp}] from device {deviceId} - Duration [{duration.TotalMilliseconds}] mills - Traceid[{traceId}]");
                                         break;
                                     }
                                 }
-                                device.AddEventCount();
-                                device.AddMessageCount();
-
-                                transactionType = "Device Counters For Message";
-                                await storeDeviceCounters.AddOrUpdateAsync(
-                                    tx,
-                                    deviceId,
-                                    device,
-                                    (key, currentValue) =>
-                                    {
-                                        return device;
-                                    });
-
-                                retryCounter = 0;
-                                await tx.CommitAsync();
                             }
-                            else
-                            {
-                                device.AddEventCount();
 
-                                transactionType = "Device Counters For Event";
-                                await storeDeviceCounters.AddOrUpdateAsync(
-                                    tx,
-                                    deviceId,
-                                    device,
-                                    (key, currentValue) =>
-                                    {
-                                        return device;
-                                    });
+                            await tx.CommitAsync();
 
-                                ServiceEventSource.Current.ServiceMessage(
-                                    this.context,
-                                    $"Data Service Received {events.Count()} events from device {deviceId} - Message not completed yet");
-                                retryCounter = 0;   // this means we have saved the partial changes for the message each sensor message
-                                await tx.CommitAsync();
-                            }
+                            retryCounter = 0;
+                            duration = DateTime.UtcNow.Subtract(durationCounter);
+                            ServiceEventSource.Current.ServiceMessage(
+                                this.context,
+                                $"Data Service - Finish commits to message with timestamp [{completedMessage.Timestamp.ToString()}] from device {deviceId} - Duration [{duration.TotalMilliseconds}] mills - Traceid[{traceId}]");
                         }
                         catch (TimeoutException tex)
                         {
@@ -202,7 +191,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                             {
                                 ServiceEventSource.Current.ServiceMessage(
                                     this.context,
-                                    $"Data Service Timeout Exception when saving [{transactionType}] data from device {deviceId} - Iteration #{retryCounter} - Message-[{tex}]");
+                                    $"Data Service Timeout Exception when saving [{transactionType}] data from device {deviceId} - Iteration #{retryCounter} - Message-[{tex}] - Traceid[{traceId}]");
 
                                 await Task.Delay(global::Iot.Common.Names.TransactionRetryWaitIntervalInMills * (int)Math.Pow(2,retryCounter));
                                 retryCounter++;
@@ -211,7 +200,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                             {
                                 ServiceEventSource.Current.ServiceMessage(
                                     this.context,
-                                    $"Data Service Timeout Exception when saving [{transactionType}] data from device {deviceId} - Iteration #{retryCounter} - Transaction Aborted - Message-[{tex}]");
+                                    $"Data Service Timeout Exception when saving [{transactionType}] data from device {deviceId} - Iteration #{retryCounter} - Transaction Aborted - Message-[{tex}] - Traceid[{traceId}]");
 
                                 resultRet = this.BadRequest();
                                 retryCounter = 0;
@@ -219,81 +208,95 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                         }
                     }
                 }
-
-                if( completedMessage != null )
-                {
-                    await StoreLastCompletedMessage(completedMessage);
-                    ServiceEventSource.Current.ServiceMessage(
-                        this.context,
-                        $"Data Service Received {events.Count()} events from device {deviceId} - Message completed");
-                }
             }
             catch (Exception ex)
             {
                 ServiceEventSource.Current.ServiceMessage(
                     this.context,
-                    $"Data Service Exception when saving [{transactionType}] data from device {deviceId} - Message-[{ex}]");
+                    $"Data Service Exception when saving [{transactionType}] data from device {deviceId} - Message-[{ex}] - - Traceid[{traceId}]");
             }
+
+            if (completedMessage != null)  
+            {
+                completedMessage.Timestamp = messageTimestamp;
+                storageCache.Enqueue(completedMessage);
+                
+                if( storageCache.Count > global::Iot.Common.Names.DataServiceCacheSizeForHistoryObjects)
+                {
+                    transactionType = "Save Completed Message";
+                    retryCounter = 1;
+                    while (retryCounter > 0)
+                    {
+                        try
+                        {
+                            using (ITransaction tx = this.stateManager.CreateTransaction())
+                            {
+                                int counter = 1;
+                                while( storageCache.Count > 0)
+                                {
+                                    DeviceEventSeries deviceEventSeries = storageCache.Dequeue();
+
+                                    counter++;
+
+                                    await storeCompletedMessages.AddOrUpdateAsync(
+                                        tx,
+                                        deviceEventSeries.Timestamp,
+                                        deviceEventSeries,
+                                        (key, currentValue) =>
+                                        {
+                                            return deviceEventSeries;
+                                        }
+                                    );
+                                }
+                                duration = DateTime.UtcNow.Subtract(durationCounter);
+                                ServiceEventSource.Current.ServiceMessage(
+                                    this.context,
+                                    $"Completed message saved [{counter}] messages to Completed Messages Store - Duration [{duration.TotalMilliseconds}] mills - Traceid[{traceId}]");
+                                await tx.CommitAsync();
+                                retryCounter = 0;
+                            }
+                        }
+                        catch (TimeoutException tex)
+                        {
+                            if (global::Iot.Common.Names.TransactionsRetryCount > retryCounter)
+                            {
+                                ServiceEventSource.Current.ServiceMessage(
+                                    this.context,
+                                    $"Data Service Timeout Exception when saving [{transactionType}] data from device {deviceId} - Iteration #{retryCounter} - Message-[{tex}] - Traceid[{traceId}]");
+
+                                await Task.Delay(global::Iot.Common.Names.TransactionRetryWaitIntervalInMills * (int)Math.Pow(2, retryCounter));
+                                retryCounter++;
+                            }
+                            else
+                            {
+                                ServiceEventSource.Current.ServiceMessage(
+                                    this.context,
+                                    $"Data Service Timeout Exception when saving [{transactionType}] data from device {deviceId} - Iteration #{retryCounter} - Transaction Aborted - Message-[{tex}] - Traceid[{traceId}]");
+
+                                resultRet = this.BadRequest();
+                                retryCounter = 0;
+                            }
+                        }
+
+                    }
+                }
+
+
+                duration = DateTime.UtcNow.Subtract(durationCounter);
+                ServiceEventSource.Current.ServiceMessage(
+                    this.context,
+                    $"Data Service - Saved Message to Complete Message Store with timestamp [{completedMessage.Timestamp.ToString()}] indexed by timestamp[{messageTimestamp}] from device {deviceId} - Duration [{duration.TotalMilliseconds}] mills - Traceid[{traceId}]");
+            }
+
+            duration = DateTime.UtcNow.Subtract(durationCounter);
+            ServiceEventSource.Current.ServiceMessage(
+                this.context,
+                $"Data Service Received {events.Count()} events from device {deviceId} - Message completed Duration [{duration.TotalMilliseconds}] mills - Traceid[{traceId}]");
 
             return resultRet;
         }
 
         // PRIVATE METHODS
-       private async Task<bool> StoreLastCompletedMessage(DeviceEventSeries completedMessage )
-       {
-            int retryCounter = 1;
-            string transactionType = "Completed Last Message";
-            IReliableDictionary<string, DeviceEventSeries> storeLastCompletedMessage = null;
-
-            using (ITransaction tx = this.stateManager.CreateTransaction())
-            {
-                storeLastCompletedMessage = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEventSeries>>(tx, TargetSolution.Names.EventLatestDictionaryName);
-                await tx.CommitAsync();
-            }
-
-            while (retryCounter > 0)
-            {
-                using (ITransaction tx = this.stateManager.CreateTransaction())
-                {
-                    try
-                    {
-                        await storeLastCompletedMessage.AddOrUpdateAsync(
-                            tx,
-                            completedMessage.DeviceId,
-                            completedMessage,
-                            (key, currentValue) =>
-                            {
-                                return completedMessage;
-                            }
-                        );
-                        retryCounter = 0;
-                        await tx.CommitAsync();
-                    }
-                    catch (TimeoutException tex)
-                    {
-                        if (global::Iot.Common.Names.TransactionsRetryCount > retryCounter)
-                        {
-                            ServiceEventSource.Current.ServiceMessage(
-                                this.context,
-                                $"Data Service Timeout Exception when saving [{transactionType}] data from device {completedMessage.DeviceId} - Iteration #{retryCounter} - Message-[{tex}]");
-
-                            await Task.Delay(global::Iot.Common.Names.TransactionRetryWaitIntervalInMills * (int)Math.Pow(2, retryCounter));
-                            retryCounter++;
-                        }
-                        else
-                        {
-                            ServiceEventSource.Current.ServiceMessage(
-                                this.context,
-                                $"Data Service Timeout Exception when saving [{transactionType}] data from device {completedMessage.DeviceId} - Iteration #{retryCounter} - Transaction Aborted - Message-[{tex}]");
-
-                            retryCounter = 0;
-                        }
-                    }
-                }
-            }
-            return true;
-        }
-
         public class TaskSynchronizationScope
         {
             private Task _currentTask;
@@ -362,7 +365,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
 
             if( resetCurrent )
             {
-                completedMessage = currentSeries;
+                completedMessage = new DeviceEventSeries( currentSeries.DeviceId, currentSeries.Events );
                 currentSeries = newSeries;
             }
             else
