@@ -234,6 +234,7 @@
   <ItemGroup>
     <Compile Include="Config\Names.cs" />
     <Compile Include="Features\ReportsDataHandler.cs" />
+    <Compile Include="Models\DeviceEventRow.cs" />
     <Compile Include="Models\DeviceReportModel.cs" />
     <Compile Include="Models\DeviceViewModel.cs" />
     <Compile Include="Models\DeviceViewModelList.cs" />

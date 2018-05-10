@@ -61,6 +61,51 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
         }
 
         [HttpGet]
+        [Route("history/page/{pageIndex}")]
+        [Route("history/page/{pageIndex}/pageSize/{pageSize}")]
+        [Route("history/{deviceId}/page/{pageIndex}")]
+        [Route("history/{deviceId}/page/{pageIndex}/pageSize/{pageSize}")]
+        public async Task<JsonResult> SearchDevicesHistoryByPage(string deviceId = null, int pageIndex = 0, int pageSize = 20)
+        {
+            // Manage session and Context
+            HttpServiceUriBuilder contextUri = new HttpServiceUriBuilder().SetServiceName(this.context.ServiceName);
+            List<DeviceEventRow> deviceMessages = new List<DeviceEventRow>();
+
+            ServiceUriBuilder uriBuilder = new ServiceUriBuilder(Names.InsightDataServiceName);
+            Uri serviceUri = uriBuilder.Build();
+
+            // service may be partitioned.
+            // this will aggregate the queue lengths from each partition
+            ServicePartitionList partitions = await this.fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
+
+            foreach (Partition partition in partitions)
+            {
+                Uri getUrl = new HttpServiceUriBuilder()
+                    .SetServiceName(serviceUri)
+                    .SetPartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey)
+                    .SetServicePathAndQuery($"/api/devices/history/page/{pageIndex}/pageSize/{pageSize}")
+                    .Build();
+
+                HttpResponseMessage response = await httpClient.GetAsync(getUrl, appLifetime.ApplicationStopping);
+
+                if (response.StatusCode == System.Net.HttpStatusCode.OK)
+                {
+                    JsonSerializer serializer = new JsonSerializer();
+                    using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
+                    {
+                        using (JsonTextReader jsonReader = new JsonTextReader(streamReader))
+                        {
+                            deviceMessages.AddRange( serializer.Deserialize<List<DeviceEventRow>>(jsonReader));
+                        }
+                    }
+                }
+            }
+
+            return this.Json( new { deviceMessages, deviceMessages.Count });
+        }
+
+
+        [HttpGet]
         [Route("queue/length")]
         public async Task<IActionResult> GetQueueLengthAsync()
         {

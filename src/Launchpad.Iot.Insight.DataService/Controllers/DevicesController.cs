@@ -10,11 +10,13 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
     using System.Fabric;
     using System.Threading;
     using System.Threading.Tasks;
-    using Iot.Insight.DataService.Models;
+    //using System.Web.Mvc;
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.ServiceFabric.Data;
     using Microsoft.ServiceFabric.Data.Collections;
     using Microsoft.AspNetCore.Hosting;
+
+    using Iot.Insight.DataService.Models;
 
     using global::Iot.Common;
     using TargetSolution;
@@ -77,20 +79,23 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         }
 
         [HttpGet]
-        [Route("history/interval/{searchInterval}")]
-        [Route("history/{deviceId}/interval/{searchInterval}")]
-        public async Task<IActionResult> SearchDevicesHistory( string deviceId = null, int searchInterval = 86400000)
+        [Route("history/interval/{searchIntervalStart}/{searchIntervalEnd}")]
+        [Route("history/{deviceId}/interval/{searchIntervalStart}/{searchIntervalEnd}")]
+        public async Task<IActionResult> SearchDevicesHistory( string deviceId = null, long searchIntervalStart = 86400000, long searchIntervalEnd = 0)
         {
             List<object> deviceMessages = new List<object>();
             IReliableDictionary<DateTimeOffset, DeviceEventSeries> storeCompletedMessages = storeCompletedMessages = await this.stateManager.GetOrAddAsync<IReliableDictionary<DateTimeOffset, DeviceEventSeries>>(TargetSolution.Names.EventHistoryDictionaryName);
  
             if( storeCompletedMessages != null )
             {
-               DateTimeOffset intervalToSearch = DateTimeOffset.UtcNow.AddMilliseconds(searchInterval * (-1));
+                DateTimeOffset intervalToSearchStart = DateTimeOffset.UtcNow.AddMilliseconds(searchIntervalStart * (-1));
+                DateTimeOffset intervalToSearchEnd = DateTimeOffset.UtcNow.AddMilliseconds(searchIntervalEnd * (-1));
 
-               using (ITransaction tx = this.stateManager.CreateTransaction())
+                using (ITransaction tx = this.stateManager.CreateTransaction())
                 {
-                    IAsyncEnumerable<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerable = await storeCompletedMessages.CreateEnumerableAsync(tx, key => key > intervalToSearch, EnumerationMode.Ordered);
+                    IAsyncEnumerable<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerable = await storeCompletedMessages.CreateEnumerableAsync(
+                        tx, key => (key.CompareTo(intervalToSearchStart) > 0) && (key.CompareTo(intervalToSearchEnd)<=0), EnumerationMode.Ordered);
+
                     IAsyncEnumerator<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerator = enumerable.GetAsyncEnumerator();
 
                     while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
@@ -110,6 +115,51 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         }
 
         [HttpGet]
+        [Route("history/page/{pageIndex}/pageSize/{pageSize}")]
+        [Route("history/{deviceId}/page/{pageIndex}/pageSize/{pageSize}")]
+        public async Task<JsonResult> SearchDevicesHistoryByPage(string deviceId = null, int pageIndex = 0, int pageSize = 20)
+        {
+            List<DeviceEventRow> deviceMessages = new List<DeviceEventRow>();
+            IReliableDictionary<DateTimeOffset, DeviceEventSeries> storeCompletedMessages = storeCompletedMessages = await this.stateManager.GetOrAddAsync<IReliableDictionary<DateTimeOffset, DeviceEventSeries>>(TargetSolution.Names.EventHistoryDictionaryName);
+
+            if (storeCompletedMessages != null)
+            {
+                using (ITransaction tx = this.stateManager.CreateTransaction())
+                {
+                    IAsyncEnumerable<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerable = await storeCompletedMessages.CreateEnumerableAsync(tx, EnumerationMode.Ordered);
+
+                    IAsyncEnumerator<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerator = enumerable.GetAsyncEnumerator();
+
+                    int indexStart = pageIndex * pageSize;
+                    int indexEnd = indexStart + pageSize;
+
+                    int index = 1;
+                    while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
+                    {
+                        if( deviceId == null || deviceId == enumerator.Current.Value.DeviceId)
+                        {
+                            if (index > indexStart)
+                            {
+                                foreach( DeviceEvent evnt in enumerator.Current.Value.Events)
+                                {
+                                    deviceMessages.Add( new DeviceEventRow(enumerator.Current.Key, enumerator.Current.Value.DeviceId, evnt.MeasurementType, evnt.SensorIndex, evnt.Temperature, evnt.BatteryLevel, evnt.DataPointsCount));
+                                    break;
+                                }
+                            }
+                            index++;
+
+                            if (index > indexEnd)
+                                break;
+                        }
+                    }
+                    await tx.CommitAsync();
+                }
+            }
+
+            return this.Json(deviceMessages);
+        }
+
+        [HttpGet]
         [Route("queue/length")]
         public async Task<IActionResult> GetQueueLengthAsync()
         {
@@ -122,8 +172,6 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                 {
                     count = await storeCompletedMessages.GetCountAsync(tx);
                     await tx.CommitAsync();
-
-                    count += EventsController.getCurentStoreCacheCount();
                 }
                 catch (TimeoutException te)
                 {

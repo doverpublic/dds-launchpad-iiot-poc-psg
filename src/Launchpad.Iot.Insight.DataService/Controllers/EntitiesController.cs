@@ -204,7 +204,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                             bRet = true;
                             break;
                         }
-                        Thread.Sleep(10000);
+                        Thread.Sleep(1000);
                     }
                 }
                 catch (TimeoutException te)

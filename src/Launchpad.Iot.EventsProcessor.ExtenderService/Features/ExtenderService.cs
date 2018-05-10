@@ -86,72 +86,104 @@ namespace Launchpad.Iot.EventsProcessor.ExtenderService
 
             ServiceEventSource.Current.ServiceMessage(this.Context, $"ExtenderService - {ServiceUniqueId} - RunAsync - Starting service  - Data Service URLs[{PublishDataServiceURLs}]");
 
+            DateTimeOffset currentSearchStartingTime = DateTimeOffset.UtcNow.AddHours(-2);
+
             if(PublishDataServiceURLs != null && PublishDataServiceURLs.Length > 0 )
             {
                 string[] routingparts = PublishDataServiceURLs.Split(';');
+                int currentValueForIntervalEnd = global::Iot.Common.Names.ExtenderStandardRetryWaitIntervalsInMills;
 
                 using (HttpClient httpClient = new HttpClient(new HttpServiceClientHandler()))
                 {
-                    int searchInterval = global::Iot.Common.Names.ExtenderStandardRetryWaitIntervalsInMills;
-                    string servicePathAndQuery = $"/api/devices/history/interval/{searchInterval}";
-
                     while (true)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         string reportUniqueId = FnvHash.GetUniqueId();
+                        int messageCount = 1;
 
-                        int messageCount = 0;
-                        try
+                        while (messageCount > 0)
                         {
-                            ServiceUriBuilder uriBuilder = new ServiceUriBuilder(routingparts[0], global::Iot.Common.Names.InsightDataServiceName);
-                            Uri serviceUri = uriBuilder.Build();
-
-                            ServiceEventSource.Current.ServiceMessage(this.Context, $"ExtenderService - {ServiceUniqueId} - RunAsync - About to call URL[{serviceUri}] to collect completed messages - SearchInterval[{searchInterval}]");
-
-                            // service may be partitioned.
-                            // this will aggregate the queue lengths from each partition
-                            System.Fabric.Query.ServicePartitionList partitions = await this.fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
-
-                            foreach (System.Fabric.Query.Partition partition in partitions)
+                            try
                             {
-                                List<DeviceViewModelList> deviceViewModelList = new List<DeviceViewModelList>();
-                                Uri getUrl = new HttpServiceUriBuilder()
-                                    .SetServiceName(serviceUri)
-                                    .SetPartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey)
-                                    .SetServicePathAndQuery(servicePathAndQuery)
-                                    .Build();
+                                DateTimeOffset startTime = currentSearchStartingTime;
+                                long searchIntervalStart = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - currentSearchStartingTime.ToUnixTimeMilliseconds() - 500; // this last adjusment is only to compensate for latency around the calls
+                                long searchIntervalEnd = searchIntervalStart - currentValueForIntervalEnd;
 
-                                HttpResponseMessage response = await httpClient.GetAsync(getUrl, cancellationToken);
-
-                                if (response.StatusCode == System.Net.HttpStatusCode.OK)
+                                if (searchIntervalEnd < 0)
                                 {
-                                    JsonSerializer serializer = new JsonSerializer();
-                                    using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
-                                    {
-                                        using (JsonTextReader jsonReader = new JsonTextReader(streamReader))
-                                        {
-                                            List<DeviceViewModelList> resultList = serializer.Deserialize<List<DeviceViewModelList>>(jsonReader);
+                                    searchIntervalEnd = 0;
+                                    currentValueForIntervalEnd = global::Iot.Common.Names.ExtenderStandardRetryWaitIntervalsInMills;
+                                }
 
-                                            deviceViewModelList.AddRange(resultList);
+                                DateTimeOffset endTime = DateTimeOffset.UtcNow.AddMilliseconds(searchIntervalEnd * (-1));
+
+                                string servicePathAndQuery = $"/api/devices/history/interval/{searchIntervalStart}/{searchIntervalEnd}";
+
+                                ServiceUriBuilder uriBuilder = new ServiceUriBuilder(routingparts[0], global::Iot.Common.Names.InsightDataServiceName);
+                                Uri serviceUri = uriBuilder.Build();
+
+                                ServiceEventSource.Current.ServiceMessage(this.Context, $"ExtenderService - {ServiceUniqueId} - RunAsync - About to call URL[{serviceUri}] to collect completed messages - Search[{servicePathAndQuery}] Time Start[{startTime}] End[{endTime}]");
+
+                                // service may be partitioned.
+                                // this will aggregate the queue lengths from each partition
+                                System.Fabric.Query.ServicePartitionList partitions = await this.fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
+
+                                foreach (System.Fabric.Query.Partition partition in partitions)
+                                {
+                                    List<DeviceViewModelList> deviceViewModelList = new List<DeviceViewModelList>();
+                                    Uri getUrl = new HttpServiceUriBuilder()
+                                        .SetServiceName(serviceUri)
+                                        .SetPartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey)
+                                        .SetServicePathAndQuery(servicePathAndQuery)
+                                        .Build();
+
+                                    HttpResponseMessage response = await httpClient.GetAsync(getUrl, cancellationToken);
+
+                                    if (response.StatusCode == System.Net.HttpStatusCode.OK)
+                                    {
+                                        JsonSerializer serializer = new JsonSerializer();
+                                        using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
+                                        {
+                                            using (JsonTextReader jsonReader = new JsonTextReader(streamReader))
+                                            {
+                                                List<DeviceViewModelList> resultList = serializer.Deserialize<List<DeviceViewModelList>>(jsonReader);
+
+                                                deviceViewModelList.AddRange(resultList);
+                                            }
+                                        }
+
+                                        if (deviceViewModelList.Count > 0)
+                                        {
+
+                                            DeviceViewModelList lastItem = deviceViewModelList.ElementAt(deviceViewModelList.Count()-1);
+
+                                            currentSearchStartingTime = lastItem.Events.ElementAt(0).Timestamp;
+            
+                                            messageCount = deviceViewModelList.Count;
+
+                                            await ReportsDataHandler.PublishReportDataFor(reportUniqueId, routingparts[1], deviceViewModelList, this.Context, httpClient, cancellationToken, ServiceEventSource.Current);
+
+                                        }
+                                        else
+                                        {
+                                            messageCount = 0;
                                         }
                                     }
-
-                                    if (deviceViewModelList.Count > 0)
+                                    else
                                     {
-                                        messageCount += deviceViewModelList.Count;
-
-                                        await ReportsDataHandler.PublishReportDataFor(reportUniqueId, routingparts[1], deviceViewModelList, this.Context, httpClient, cancellationToken, ServiceEventSource.Current);
-
+                                        messageCount = 0;
                                     }
                                 }
+                                ServiceEventSource.Current.ServiceMessage(this.Context, $"ExtenderService - {ServiceUniqueId} - RunAsync - Finished posting messages to report stream - Total number of messages[{messageCount}]");
                             }
-                            ServiceEventSource.Current.ServiceMessage(this.Context, $"ExtenderService - {ServiceUniqueId} - RunAsync - Finished posting messages to report stream - Total number of messages[{messageCount}]");
-                        }
-                        catch (Exception ex)
-                        {
-                            ServiceEventSource.Current.ServiceMessage(this.Context, $"ExtenderService - {ServiceUniqueId} - RunAsync - Severe error when reading or sending messages to report stream - Exception[{ex}] - Inner Exception[{ex.InnerException}] StackTrace[{ex.StackTrace}]");
+                            catch (Exception ex)
+                            {
+                                ServiceEventSource.Current.ServiceMessage(this.Context, $"ExtenderService - {ServiceUniqueId} - RunAsync - Severe error when reading or sending messages to report stream - Exception[{ex}] - Inner Exception[{ex.InnerException}] StackTrace[{ex.StackTrace}]");
+                            }
                         }
 
+                        currentValueForIntervalEnd += global::Iot.Common.Names.ExtenderStandardRetryWaitIntervalsInMills;
+          
                         await Task.Delay(global::Iot.Common.Names.ExtenderStandardRetryWaitIntervalsInMills);
                     }
                 }

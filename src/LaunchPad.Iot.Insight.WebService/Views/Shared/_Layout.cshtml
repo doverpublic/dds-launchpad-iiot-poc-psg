@@ -4,12 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["TargetSite"] - @ViewData["PageTitle"]</title>
-    <script src="https://code.jquery.com/jquery-3.2.1.min.js"
-            integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
-            crossorigin="anonymous">
-    </script>
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
     <link href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css" rel="stylesheet">
+
     <!-- Internal definitions for Dialogs -->
     <style>
         .ui-widget-header, .ui-state-default, ui-button {
@@ -44,7 +42,7 @@
                 @using (Html.BeginForm("login", "Home", FormMethod.Post))
                 {
                     @Html.ValidationSummary(true, "", new { @class = "text-danger" })
-            
+
                     <fieldset>
                         @Html.AntiForgeryToken()
                         @Html.ValidationSummary(true)
@@ -52,7 +50,7 @@
                         {
                             <div style="border: 1px solid red">@ViewBag.Message</div>
                         }
-                
+
                         <table>
                             <tr>
                                 <td><label id="labelFirstName" for="FirstName">First Name</label></td>
@@ -194,9 +192,11 @@
                     withCredentials: true
                 }
             }).success(function (res) {
-                hide_error();
+                alert("on logout success responseText=" + res.responseText);
                 window.location.href = res.responseText;
+                hide_error();
             }).error(function (res) {
+                alert("on logout error responseText=" + res.responseText);
                 window.location.href = res.responseText;
             });
         }
@@ -204,3 +204,4 @@
     </script>
 </body>
 </html>
+

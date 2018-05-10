@@ -26,11 +26,11 @@ fieldset { border: 1px solid #555555; margin: 10px 0; padding: 10px; }
 input[type=text] { display: inline-block; padding: 5px; background: #333333; color: #DDDDDD; border: 1px solid #555555; }
 button { display: block; width: 100px; padding: 3px; }
 
-a, a:visited, a:hover, a:active { color: #00ABEC; }
+a, a:link{ color: green; }, a:visited, a:hover, a:active { color: #00ABEC; }
 h3 { font-size: 1.5em; font-weight: lighter; color:#FFFFFF; }
 h4 { font-size: 1.3em; font-weight: lighter; color:#FFFFFF; }
 h5 { font-size: 1.2em; font-weight: lighter; color:#DDDDDD; }
-ul li { list-style: none; margin: 3px 0; padding: 0; }
+ul li { list-style: none; margin: 3px 0; padding: 0; color:#ABCDEF;}
 
 #main { clear: both; }
 
@@ -41,7 +41,7 @@ ul li { list-style: none; margin: 3px 0; padding: 0; }
 .header { margin: 0 0 15px 0; padding: 5px; width: 340px;}
 .label { margin: 0 0 15px 0; padding: 5px; width: 340px; color:#000000;}
 
-#queueLength { font-size:64px; font-weight:lighter; color:#00ABEC}
+#queueLength { font-size:40px; font-weight:lighter; color:#00ABEC}
 
 .deviceInfo { margin:5px 0; padding:5px; background:#222222; text-wrap: normal;  word-wrap: break-word;  }
     .deviceInfo  label { display: inline-block; min-width: 75px; font-weight: bold; color:#DDDDDD; }

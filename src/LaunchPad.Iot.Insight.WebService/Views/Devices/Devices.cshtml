@@ -1,132 +1,199 @@
-﻿@{
+﻿﻿@{
     ViewData["Title"] = "Devices Page";
 }
 
-<div id="main">
-    <div id="result"></div>
-    <div class="tile">
-        <h3>Count of Device Events Processed:</h3>
-        <div id="queueLength">Loading..</div>
+<div id="tabs">
+    <ul>
+        <li><a href="#tabs-1">Last Posted Data</a></li>
+        <li><a href="#tabs-2">Historical Data</a></li>
+        <li><a href="#tabs-3">Analysis Report</a></li>
+    </ul>
+    <div id="tabs-1">
+        <div id="main">
+            <div id="result"></div>
+            <div class="tile">
+                <h3>Count of Device Events Processed:</h3>
+                <div id="queueLength">Loading..</div>
+            </div>
+            <div class="tile">
+                <h3>Devices</h3>
+                <ul id="deviceList"></ul>
+            </div>
+        </div>
     </div>
-    <div class="tile">
-        <h3>Devices</h3>
-        <ul id="deviceList"></ul>
+    <div id="tabs-2">
+        <div class="margin-top-10">
+            <div class="float-left">
+                <form class="display-inline">
+                    <input id="txtTimestamp" type="text" placeholder="5/9/2018 4:02:33 PM +00:00" class="gj-textbox-md display-inline-block width-200" />
+                    <button id="btnSearch" type="button" class="gj-button-md">Search</button>
+                </form>
+            </div>
+        </div>
+        <div class="clear-both"></div>
+        <div class="margin-top-10">
+            <table id="grid"></table>
+        </div>
+    </div>
+    <div id="tabs-3">
+        <iframe width="1280" height="750" src="https://app.powerbi.com/view?r=eyJrIjoiYjEzNzY4MTMtNjU0Mi00OGJiLWIyZjgtYjU4ZWYwMjVhZGZlIiwidCI6IjNkMmQyYjZmLTA2MWEtNDhiNi1iNGIzLTkzMTJkNjg3ZTNhMSIsImMiOjN9" frameborder="0" allowFullScreen="true"></iframe>
     </div>
 </div>
 
 @section scripts
     {
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" type="text/css" />
+    <link href="https://cdn.jsdelivr.net/npm/gijgo@1.9.6/css/gijgo.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/gijgo@1.9.6/js/gijgo.min.js" type="text/javascript"></script>
+
     <script>
+    var path = window.location.pathname.replace(/\/+$/, "");
 
-        $(function() {
-            var path = window.location.pathname.replace(/\/+$/, "");
-            var $result = $('#result');
-            var refreshRate = 3000;
-            var analysisReportUrl = "https://app.powerbi.com/view?r=eyJrIjoiYjEzNzY4MTMtNjU0Mi00OGJiLWIyZjgtYjU4ZWYwMjVhZGZlIiwidCI6IjNkMmQyYjZmLTA2MWEtNDhiNi1iNGIzLTkzMTJkNjg3ZTNhMSIsImMiOjN9";
+    $(function () {
+        $("#tabs").tabs();
+    });
 
-            function last(path) {
-                var s = path.replace(/\/+$/, "").split('/');
-                return s[s.length - 1];
-            }
+    $(document).ready(function () {
+          var gridData = {'deviceMessages':[{"timestamp": "empty","deviceId": "empty","measurementType": "empty","sensorIndex": 0,"temperature": 0,"batteryLevel":0,"dataPointsCount":0}]};
+          $.ajax({
+              url: path + '/history/page/0/pageSize/200',
+              async: false,
+              method: 'GET',
+              contentType: 'application/json',
+              dataType: 'json',
+              success: function (result) {
+                  gridData = result;
+              },
+              error: function (error) {
+                  alert( "Error reading Grid Data - message=" +  error.responseText);
+              }
+          })
 
-            refreshDeviceList = function(apiUrl, $deviceList) {
-                $.ajax({
+          $('#grid').grid({
+                dataSource: gridData.deviceMessages,
+                columns: [
+                    { field: 'timestamp', title: 'Message Timestamp', width:300},
+                    { field: 'deviceId', title: 'Device Id', sortable: true },
+                    { field: 'measurementType', title: 'Measurement Type', sortable: true },
+                    { field: 'temperature', title: 'Temperature', sortable: true },
+                    { field: 'sensorIndex', title: 'Sensor Index', sortable: true },
+                    { field: 'batteryLevel', title : 'Battery Level', sortable: true },
+                    { field: 'dataPointsCount', title : 'Data Points Count' }
+                ],
+                pager: { limit: 10 }
+          });
+
+          $('#btnSearch').on('click', function () {
+              grid.reload({ page: 1, name: $('#txtTimestamp').val() });
+          });
+    });
+
+    $(function() {
+        var $result = $('#result');
+        var refreshRate = 3000;
+
+        function last(path) {
+            var s = path.replace(/\/+$/, "").split('/');
+            return s[s.length - 1];
+        }
+
+        refreshDeviceList = function(apiUrl, $deviceList) {
+            $.ajax({
+                url: path + apiUrl,
+                method: 'GET',
+                contentType: 'application/json',
+                dataType: 'json',
+                success: function (devices) {
+
+                    //<a id="myLink" title="Click to do something" href = "#" onclick= "MyFunction();return false;" > link text</a >
+                    var reportPath = '/' + '@ViewData["TargetSite"]' + '/run/report/parm/';
+
+                    $deviceList.html('');
+
+                    $deviceList.append(
+                        '<h4>Last Posted Events By Device</h4>' +
+                        '<hr>'
+                    );
+
+                    for (var i = 0; i < devices.length; ++i) {
+                        var device = devices[i];
+
+						$deviceList.append(
+                            '<li><p>&nbsp;</p></li><li>' +
+                            '<div class="deviceInfo">' +
+                            '<h3>' + device.deviceId + '</h3>' + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a id="runReport" href="#" onclick="popitup(' + "'" + reportPath + device.deviceId + "','" + reportPath + device.deviceId + "');return false;" + '">View Report</a>' +
+							'&nbsp;&nbsp;<label>Measurement Type:' + device.events[0].measurementType + '</label>' +
+							'&nbsp;&nbsp;<label>Temperature:' + device.events[0].temperature +  '</label>' +
+							'&nbsp;&nbsp;<label>Battery Level:' + device.events[0].batteryLevel +  '</label>' +
+							'&nbsp;&nbsp;<label>Timestamp:' + device.events[0].timestamp +  '</label>' +
+							'&nbsp;&nbsp;<label>Data Points Count:' + device.events[0].dataPointsCount +  '</label>' +
+							'<ul class="deviceData">'
+                        );
+
+                        for (var index = 0; index < device.events.length; index++ ) {
+                            var evt = device.events[index];
+
+                            $deviceList.append(
+								'<div class="deviceInfo"><legend><label>Sensor Index:&nbsp;' + evt.sensorIndex + '</label></legend>' +
+                                '<li><label>Magnitude:</label>&nbsp;' + evt.magnitude + '</li>' +
+                                '<li><label>Frequency:</label>&nbsp;' + evt.frequency + '</li>' +
+                                '</div>'
+                            )
+                        }
+                        $deviceList.append(
+                            '</ul></div>' +
+                            '</li>'
+                        );
+                    }
+                },
+                error: function (error) {
+                    $result.removeClass();
+                    $result.addClass('errorResult');
+                    $result.html('Failed to refresh info from [' + apiUrl + '] - Message[' + error.responseText + ']');
+                }
+            })
+            .always(function() {
+                setTimeout(function() {
+                    $result.html('');
+                    $result.removeClass();
+                    refreshDeviceList(apiUrl, $deviceList);
+                }, refreshRate);
+            });
+        }
+
+        refreshQueueLength = function(apiUrl, $queueElement) {
+            $.ajax({
                     url: path + apiUrl,
                     method: 'GET',
                     contentType: 'application/json',
                     dataType: 'json',
-                    success: function (devices) {
-
-                        //<a id="myLink" title="Click to do something" href = "#" onclick= "MyFunction();return false;" > link text</a >
-                        var reportPath = '/' + '@ViewData["TargetSite"]' + '/run/report/parm/';
-                        var reportStreamPath = '/' + '@ViewData["TargetSite"]' + '/run/streamReport/parm/' + analysisReportUrl;
-
-                        $deviceList.html('');
-
-                        $deviceList.append(
-                            '<h4>Last Posted Events By Device</h4>' + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a id="runAnalysisReport" href="#" onclick="popitup(' + "'" + reportStreamPath + "','Analysis Report');return false;" + '">View Analysis Report</a>' +
-                            '<hr>'
-                        );
-
-                        for (var i = 0; i < devices.length; ++i) {
-                            var device = devices[i];
-
-							$deviceList.append(
-                                '<li><p>&nbsp;</p></li><li>' +
-                                '<div class="deviceInfo">' +
-                                '<h3>' + device.deviceId + '</h3>' + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a id="runReport" href="#" onclick="popitup(' + "'" + reportPath + device.deviceId + "','" + reportPath + device.deviceId + "');return false;" + '">View Report</a>' +
-								'&nbsp;&nbsp;<label>Measurement Type:' + device.events[0].measurementType + '</label>' +
-								'&nbsp;&nbsp;<label>Temperature:' + device.events[0].temperature +  '</label>' +
-								'&nbsp;&nbsp;<label>Battery Level:' + device.events[0].batteryLevel +  '</label>' +
-								'&nbsp;&nbsp;<label>Timestamp:' + device.events[0].timestamp +  '</label>' +
-								'&nbsp;&nbsp;<label>Data Points Count:' + device.events[0].dataPointsCount +  '</label>' +
-								'<ul class="deviceData">'
-                            );
-
-                            for (var index = 0; index < device.events.length; index++ ) {
-                                var evt = device.events[index];
-
-                                $deviceList.append(
-									'<div class="deviceInfo"><legend><label>Sensor Index:&nbsp;' + evt.sensorIndex + '</label></legend>' +
-                                    '<li><label>Magnitude:</label>&nbsp;' + evt.magnitude + '</li>' +
-                                    '<li><label>Frequency:</label>&nbsp;' + evt.frequency + '</li>' +
-                                    '</div>'
-                                )
-                            }
-                            $deviceList.append(
-                                '</ul></div>' +
-                                '</li>'
-                            );
-                        }
-                    },
+                    success: function (result) {
+                        $queueElement.html(result);
+                        },
                     error: function (error) {
-                        $result.removeClass();
-                        $result.addClass('errorResult');
-                        $result.html('Failed to refresh info from [' + apiUrl + '] - Message[' + error.responseText + ']');
+                        window.location.href = error.responseText;
                     }
-                })
-                .always(function() {
-                    setTimeout(function() {
-                        $result.html('');
-                        $result.removeClass();
-                        refreshDeviceList(apiUrl, $deviceList);
-                    }, refreshRate);
-                });
-            }
-
-            refreshQueueLength = function(apiUrl, $queueElement) {
-                $.ajax({
-                        url: path + apiUrl,
-                        method: 'GET',
-                        contentType: 'application/json',
-                        dataType: 'json',
-                        success: function (result) {
-                            $queueElement.html(result);
-                         },
-                        error: function (error) {
-                            window.location.href = error.responseText;
-                        }
-                })
-                .always(function() {
-                    setTimeout(function() {
-                        $result.html('');
-                        $result.removeClass();
-                        refreshQueueLength(apiUrl, $queueElement);
-                    }, refreshRate);
-                });
-            }
-
-            refreshDeviceList('/deviceList', $('#deviceList'));
-            refreshQueueLength('/queue/length', $('#queueLength'));
-
-        });
-
-        function popitup(url, windowName)
-        {
-            newwindow = window.open(url, windowName, 'height=1040,width=1300,location=no,menubar=no,status=no,toolbar=no,titlebar=no,left=50,top=50');
-            if (window.focus) { newwindow.focus() }
-            return false;
+            })
+            .always(function() {
+                setTimeout(function() {
+                    $result.html('');
+                    $result.removeClass();
+                    refreshQueueLength(apiUrl, $queueElement);
+                }, refreshRate);
+            });
         }
+
+        refreshDeviceList('/deviceList', $('#deviceList'));
+        refreshQueueLength('/queue/length', $('#queueLength'));
+
+    });
+
+    function popitup(url, windowName)
+    {
+        newwindow = window.open(url, windowName, 'height=1040,width=1300,location=no,menubar=no,status=no,toolbar=no,titlebar=no,left=50,top=50');
+        if (window.focus) { newwindow.focus() }
+        return false;
+    }
 
     </script>
 }
