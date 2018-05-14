@@ -42,13 +42,13 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         public async Task<IActionResult> GetAsync()
         {
             List<object> devices = new List<object>();
-            IReliableDictionary<string, DeviceEventSeries> storeLastCompletedMessage = storeLastCompletedMessage = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEventSeries>>(TargetSolution.Names.EventLatestDictionaryName);
+            IReliableDictionary<string, DeviceEventSeries> storeLatestMessage = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEventSeries>>(TargetSolution.Names.EventLatestDictionaryName);
 
             using (ITransaction tx = this.stateManager.CreateTransaction())
             {
                 try
                 {
-                    IAsyncEnumerable<KeyValuePair<string, DeviceEventSeries>> enumerable = await storeLastCompletedMessage.CreateEnumerableAsync(tx,EnumerationMode.Ordered);
+                    IAsyncEnumerable<KeyValuePair<string, DeviceEventSeries>> enumerable = await storeLatestMessage.CreateEnumerableAsync(tx,EnumerationMode.Ordered);
                     IAsyncEnumerator<KeyValuePair<string, DeviceEventSeries>> enumerator = enumerable.GetAsyncEnumerator();
 
                     while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
@@ -115,48 +115,112 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         }
 
         [HttpGet]
-        [Route("history/page/{pageIndex}/pageSize/{pageSize}")]
-        [Route("history/{deviceId}/page/{pageIndex}/pageSize/{pageSize}")]
-        public async Task<JsonResult> SearchDevicesHistoryByPage(string deviceId = null, int pageIndex = 0, int pageSize = 20)
+        [Route("history/batchIndex/{batchIndex}/batchSize/{batchSize}")]
+        [Route("history/batchIndex/{batchIndex}/batchSize/{batchSize}/startingAt/{startTimestamp}")]
+        [Route("history/{deviceId}/batchIndex/{batchIndex}/batchSize/{batchSize}")]
+        [Route("history/{deviceId}/batchIndex/{batchIndex}/batchSize/{batchSize}/startingAt/{startTimestamp}")]
+        public async Task<JsonResult> SearchDevicesHistoryByPage(string deviceId = null, int batchIndex = 1, int batchSize = 200, string startTimestamp = null)
         {
-            List<DeviceEventRow> deviceMessages = new List<DeviceEventRow>();
+            DeviceEventRowList deviceMessages = new DeviceEventRowList(batchIndex,batchSize);
             IReliableDictionary<DateTimeOffset, DeviceEventSeries> storeCompletedMessages = storeCompletedMessages = await this.stateManager.GetOrAddAsync<IReliableDictionary<DateTimeOffset, DeviceEventSeries>>(TargetSolution.Names.EventHistoryDictionaryName);
+            DateTimeOffset searchStartTimestamp = DateTimeOffset.Parse("1970-01-01T00:00:00.000Z");
 
             if (storeCompletedMessages != null)
             {
                 using (ITransaction tx = this.stateManager.CreateTransaction())
                 {
-                    IAsyncEnumerable<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerable = await storeCompletedMessages.CreateEnumerableAsync(tx, EnumerationMode.Ordered);
+                    IAsyncEnumerable<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerable = null;
+                        
+                    if(startTimestamp == null)
+                    {
+                        enumerable = await storeCompletedMessages.CreateEnumerableAsync(tx, EnumerationMode.Ordered);
+                    }    
+                    else
+                    {
+                        searchStartTimestamp = DateTimeOffset.Parse(startTimestamp);
+                        enumerable = await storeCompletedMessages.CreateEnumerableAsync(tx,key => key.CompareTo(searchStartTimestamp) >= 0,EnumerationMode.Ordered);
+                    }
 
                     IAsyncEnumerator<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerator = enumerable.GetAsyncEnumerator();
 
-                    int indexStart = pageIndex * pageSize;
-                    int indexEnd = indexStart + pageSize;
+                    int indexStart = batchIndex;
+
+                    if (indexStart < 0)
+                        indexStart = 0;
+                    else if (indexStart > 0)
+                        indexStart--;
+
+                    indexStart = indexStart * batchSize;
+
+                    int indexEnd = indexStart + batchSize;
 
                     int index = 1;
                     while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
                     {
-                        if( deviceId == null || deviceId == enumerator.Current.Value.DeviceId)
+                        if (searchStartTimestamp.ToUnixTimeMilliseconds() < 1000)
+                            searchStartTimestamp = enumerator.Current.Key;
+
+                        if ( deviceId == null || deviceId == enumerator.Current.Value.DeviceId)
                         {
-                            if (index > indexStart)
+                            if (index > indexStart && index <= indexEnd)
                             {
                                 foreach( DeviceEvent evnt in enumerator.Current.Value.Events)
                                 {
-                                    deviceMessages.Add( new DeviceEventRow(enumerator.Current.Key, enumerator.Current.Value.DeviceId, evnt.MeasurementType, evnt.SensorIndex, evnt.Temperature, evnt.BatteryLevel, evnt.DataPointsCount));
+                                    deviceMessages.AddRow( new DeviceEventRow(enumerator.Current.Key, enumerator.Current.Value.DeviceId, evnt.MeasurementType, evnt.SensorIndex, evnt.Temperature, evnt.BatteryLevel, evnt.DataPointsCount));
                                     break;
                                 }
                             }
                             index++;
-
-                            if (index > indexEnd)
-                                break;
                         }
+                    }
+                    await tx.CommitAsync();
+                    deviceMessages.TotalCount = index;
+                    deviceMessages.SearchStartTimestamp = searchStartTimestamp;
+                }
+            }
+
+            return this.Json(deviceMessages);
+        }
+
+        [HttpGet]
+        [Route("history/byKey/{startTimestamp}")]
+        [Route("history/byKeyRange/{startTimestamp}/{endTimestamp}")]
+        [Route("history/{deviceId}/byKey/{startTimestamp}")]
+        [Route("history/{deviceId}/byKeyRange/{startTimestamp}/{endTimestamp}")]
+        public async Task<IActionResult> SearchDevicesHistoryByKeys(string deviceId = null, string startTimestamp = null, string endTimestamp = null)
+        {
+            List<object> deviceMessages = new List<object>();
+            IReliableDictionary<DateTimeOffset, DeviceEventSeries> storeCompletedMessages = storeCompletedMessages = await this.stateManager.GetOrAddAsync<IReliableDictionary<DateTimeOffset, DeviceEventSeries>>(TargetSolution.Names.EventHistoryDictionaryName);
+
+            if (storeCompletedMessages != null)
+            {
+                DateTimeOffset intervalToSearchStart = DateTimeOffset.Parse(startTimestamp);
+                DateTimeOffset intervalToSearchEnd = intervalToSearchStart;
+
+                if (endTimestamp != null )
+                    intervalToSearchEnd = DateTimeOffset.Parse(endTimestamp);
+
+                using (ITransaction tx = this.stateManager.CreateTransaction())
+                {
+                    IAsyncEnumerable<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerable = await storeCompletedMessages.CreateEnumerableAsync(
+                        tx, key => (key.CompareTo(intervalToSearchStart) >= 0) && (key.CompareTo(intervalToSearchEnd) <= 0), EnumerationMode.Ordered);
+
+                    IAsyncEnumerator<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerator = enumerable.GetAsyncEnumerator();
+
+                    while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
+                    {
+                        deviceMessages.Add(
+                            new
+                            {
+                                DeviceId = enumerator.Current.Value.DeviceId,
+                                enumerator.Current.Value.Events
+                            });
                     }
                     await tx.CommitAsync();
                 }
             }
 
-            return this.Json(deviceMessages);
+            return this.Ok(deviceMessages);
         }
 
         [HttpGet]

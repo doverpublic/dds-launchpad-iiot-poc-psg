@@ -1,4 +1,4 @@
-﻿﻿@{
+﻿@{
     ViewData["Title"] = "Devices Page";
 }
 
@@ -25,8 +25,38 @@
         <div class="margin-top-10">
             <div class="float-left">
                 <form class="display-inline">
-                    <input id="txtTimestamp" type="text" placeholder="5/9/2018 4:02:33 PM +00:00" class="gj-textbox-md display-inline-block width-200" />
-                    <button id="btnSearch" type="button" class="gj-button-md">Search</button>
+                    <div class="div-left">
+                        <span><b>Starting Timestamp </b></span>
+                    </div>
+                    <div class="div-left">
+                        <input id="txtTimestamp" width="200" />
+                    </div>
+                    <div class="div-left">
+                        &nbsp;&nbsp;&nbsp;
+                        <button id="btnSearch" type="button" class="gj-button-md">Search</button>
+                        <label for="batchIndex"> Index </label>
+                        <input id="batchIndex" type="text" size="5" placeholder="0" />
+                        &nbsp;&nbsp;&nbsp;
+                        <a id="batchFirst" href="#" class="previous">&laquo; First</a>
+                        <a id="batchPrevious" href="#" class="previous round">&#8249;</a>
+                        <a id="batchNext" href="#" class="next round">&#8250;</a>
+                        <a id="batchLast" href="#" class="next">Last &raquo;</a>
+                        &nbsp;&nbsp;&nbsp;
+                        <label for="batchSizeSelect">Batch Size </label>
+                    </div>
+                    <div class="div-left">
+                        <select id="batchSizeSelect" width="50">
+                            <option value="200">200</option>
+                            <option value="100">100</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
+                    <div class="div-left">
+                        &nbsp;&nbsp;&nbsp;
+                        <span id="batchTotalCountLabel">Total Row Count</span>
+                        &nbsp;
+                        <span id="batchTotalCount">Loading...</span>
+                    </div>
                 </form>
             </div>
         </div>
@@ -47,46 +77,153 @@
     <script src="https://cdn.jsdelivr.net/npm/gijgo@1.9.6/js/gijgo.min.js" type="text/javascript"></script>
 
     <script>
+    $('#batchSizeSelect').dropdown();
+
     var path = window.location.pathname.replace(/\/+$/, "");
+    var searchStartTimestamp = "01/01/2018 00:00";
+    var batchSize = 200;
+    var totalCount = 0;
+    var batchIndex = 1;
+    var maxBatchIndex = 0;
+
+    $( "#batchFirst" ).click(function() {
+        $('#batchIndex').val(1);
+        batchIndex = $('#batchIndex').val();
+    });
+
+    $( "#batchLast" ).click(function() {
+          $('#batchIndex').val(maxBatchIndex);
+          batchIndex = $('#batchIndex').val();
+    });
+
+    $( "#batchPrevious" ).click(function() {
+        if( $('#batchIndex').val() > 1 )
+        {
+            $('#batchIndex').val(parseInt($('#batchIndex').val()) - 1 );
+            batchIndex = $('#batchIndex').val();
+        }
+    });
+
+    $( "#batchNext" ).click(function() {
+        if( $('#batchIndex').val() < maxBatchIndex )
+        {
+            $('#batchIndex').val( parseInt($('#batchIndex').val()) + 1);
+            batchIndex = $('#batchIndex').val();
+        }
+    });
+
+    $( "#batchSizeSelect" ).change(function() {
+        if( $('#batchIndex').val() != batchSize )
+        {
+            batchSize = $('#batchIndex').val();
+
+            maxBatchIndex = Math.floor(totalCount / batchSize) + 1;
+
+            if( $('#batchIndex').val() > maxBatchIndex )
+            {
+                $('#batchIndex').val( maxBatchIndex );
+                batchIndex = $('#batchIndex').val();
+            }
+        }
+    });
+
 
     $(function () {
         $("#tabs").tabs();
     });
 
+    var grid = "empty";
+    var gridData = {'deviceMessages':{"batchIndex": 1,"batchSize": 200,"searchStartTimestamp": "2018-05-10T03:15:39.9083997+00:00","totalCount":1,"rows":[{"timestamp": "empty","deviceId": "empty","measurementType": "empty","sensorIndex": 0,"temperature": 0,"batteryLevel":0,"dataPointsCount":0}]}};
+    var reportPathForReport01ByKey = '/' + '@ViewData["TargetSite"]' + '/run/report/VibrationReport01/byKey/';
+
     $(document).ready(function () {
-          var gridData = {'deviceMessages':[{"timestamp": "empty","deviceId": "empty","measurementType": "empty","sensorIndex": 0,"temperature": 0,"batteryLevel":0,"dataPointsCount":0}]};
-          $.ajax({
-              url: path + '/history/page/0/pageSize/200',
-              async: false,
-              method: 'GET',
-              contentType: 'application/json',
-              dataType: 'json',
-              success: function (result) {
-                  gridData = result;
-              },
-              error: function (error) {
-                  alert( "Error reading Grid Data - message=" +  error.responseText);
-              }
-          })
-
-          $('#grid').grid({
-                dataSource: gridData.deviceMessages,
-                columns: [
-                    { field: 'timestamp', title: 'Message Timestamp', width:300},
-                    { field: 'deviceId', title: 'Device Id', sortable: true },
-                    { field: 'measurementType', title: 'Measurement Type', sortable: true },
-                    { field: 'temperature', title: 'Temperature', sortable: true },
-                    { field: 'sensorIndex', title: 'Sensor Index', sortable: true },
-                    { field: 'batteryLevel', title : 'Battery Level', sortable: true },
-                    { field: 'dataPointsCount', title : 'Data Points Count' }
-                ],
-                pager: { limit: 10 }
-          });
-
-          $('#btnSearch').on('click', function () {
-              grid.reload({ page: 1, name: $('#txtTimestamp').val() });
-          });
+       refreshGridata();
+       populateGridData();
+       updateRelatedGridata();
     });
+
+    $('#btnSearch').on('click', function () {
+         refreshGridata();
+         grid.destroy();
+         populateGridData();
+         updateRelatedGridata();
+         if( $('#txtTimestamp').val() != searchStartTimestamp )
+            $('#txtTimestamp').val(searchStartTimestamp);
+    });
+
+    function Report02(evnt) {
+        //alert("Url for report =[" + reportPathForReport01ByKey + evnt.data.record.timestamp + "]");
+
+        popitup(reportPathForReport01ByKey + evnt.data.record.timestamp,reportPathForReport01ByKey + evnt.data.record.timestamp);
+        return false;
+    }
+
+
+    refreshGridata = function () {
+        //alert( 'Grid URL=[' + path + '/history/batchIndex/' + batchIndex + '/batchSize/' + batchSize + ']' );
+        $.ajax({
+            url: path + '/history/batchIndex/' + batchIndex + '/batchSize/' + batchSize,
+            async: false,
+            method: 'GET',
+            contentType: 'application/json',
+            dataType: 'json',
+            success: function (result) {
+                gridData = result;
+            },
+            error: function (error) {
+                alert( "Error reading Grid Data - message=" +  error.responseText);
+            }
+        })
+        // alert(JSON.stringify(gridData));
+    }
+
+    populateGridData = function() {
+      grid = $('#grid').grid({
+         dataSource: gridData.rows,
+         columns: [
+             { field: 'timestamp', title: 'Message Timestamp', width:300},
+             { field: 'deviceId', title: 'Device Id', sortable: true },
+             { field: 'measurementType', title: 'Measurement Type', sortable: true },
+             { field: 'temperature', title: 'Temperature', sortable: true },
+             { field: 'sensorIndex', title: 'Sensor Index', sortable: true },
+             { field: 'batteryLevel', title : 'Battery Level', sortable: true },
+             { field: 'dataPointsCount', title: 'Data Points Count' },
+             { width: 64, tmpl: '<span class="material-icons gj-cursor-pointer">report</span>', align: 'center', events: { 'click': Report02 } }
+         ],
+         pager: { limit: 10 }
+      });
+    }
+
+    updateRelatedGridata = function() {
+         $('#batchTotalCount').html(gridData.totalCount);
+         totalCount = gridData.totalCount;
+         batchSize = gridData.batchSize;
+         maxBatchIndex = Math.floor(totalCount / batchSize) + 1;
+
+         var searchStartDate = new Date(gridData.searchStartTimestamp);
+         searchStartTimestamp = searchStartDate.getUTCFullYear() + '/' + searchStartDate.getUTCMonth() + '/' + searchStartDate.getUTCDate() + ' ';
+         if( searchStartDate.getHours() < 10 )
+             searchStartTimestamp = searchStartTimestamp + ' 0' + searchStartDate.getUTCHours() + ':';
+         else
+             searchStartTimestamp = searchStartTimestamp + ' ' + searchStartDate.getUTCHours() + ':';
+
+         if( searchStartDate.getMinutes() < 10 )
+             searchStartTimestamp = searchStartTimestamp + '0' + searchStartDate.getUTCMinutes();
+         else
+             searchStartTimestamp = searchStartTimestamp + searchStartDate.getUTCMinutes();
+
+         //alert( "searchStartTimestamp=" + searchStartTimestamp);
+
+         $('#batchIndex').val(gridData.batchIndex);
+
+         $('#txtTimestamp').datetimepicker({
+             format: 'mm/dd/yyyy HH:MM TT',
+             minDate: '01/01/2018 00:00',
+             value: searchStartTimestamp,
+             footer: true,
+             modal: true
+         });
+    }
 
     $(function() {
         var $result = $('#result');
@@ -106,7 +243,7 @@
                 success: function (devices) {
 
                     //<a id="myLink" title="Click to do something" href = "#" onclick= "MyFunction();return false;" > link text</a >
-                    var reportPath = '/' + '@ViewData["TargetSite"]' + '/run/report/parm/';
+                    var reportPathForReport01 = '/' + '@ViewData["TargetSite"]' + '/run/report/VibrationReport01/parm/';
 
                     $deviceList.html('');
 
@@ -121,13 +258,13 @@
 						$deviceList.append(
                             '<li><p>&nbsp;</p></li><li>' +
                             '<div class="deviceInfo">' +
-                            '<h3>' + device.deviceId + '</h3>' + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a id="runReport" href="#" onclick="popitup(' + "'" + reportPath + device.deviceId + "','" + reportPath + device.deviceId + "');return false;" + '">View Report</a>' +
-							'&nbsp;&nbsp;<label>Measurement Type:' + device.events[0].measurementType + '</label>' +
-							'&nbsp;&nbsp;<label>Temperature:' + device.events[0].temperature +  '</label>' +
-							'&nbsp;&nbsp;<label>Battery Level:' + device.events[0].batteryLevel +  '</label>' +
-							'&nbsp;&nbsp;<label>Timestamp:' + device.events[0].timestamp +  '</label>' +
-							'&nbsp;&nbsp;<label>Data Points Count:' + device.events[0].dataPointsCount +  '</label>' +
-							'<ul class="deviceData">'
+                            '<h3>' + device.deviceId + '</h3>' + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a id="runReport" href="#" onclick="popitup(' + "'" + reportPathForReport01 + device.deviceId + "','" + reportPathForReport01 + device.deviceId + "');return false;" + '">View Report</a>' +
+              							'&nbsp;&nbsp;<label>Measurement Type:' + device.events[0].measurementType + '</label>' +
+              							'&nbsp;&nbsp;<label>Temperature:' + device.events[0].temperature +  '</label>' +
+              							'&nbsp;&nbsp;<label>Battery Level:' + device.events[0].batteryLevel +  '</label>' +
+              							'&nbsp;&nbsp;<label>Timestamp:' + device.events[0].timestamp +  '</label>' +
+              							'&nbsp;&nbsp;<label>Data Points Count:' + device.events[0].dataPointsCount +  '</label>' +
+              							'<ul class="deviceData">'
                         );
 
                         for (var index = 0; index < device.events.length; index++ ) {

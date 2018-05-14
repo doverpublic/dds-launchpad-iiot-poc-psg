@@ -51,8 +51,10 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
         private static readonly string ClientId = appSettings["clientId"];
         private static readonly string ApiUrl = appSettings["apiUrl"];
         private static readonly string GroupId = appSettings["groupId"];
-        private static readonly string ReportId = appSettings["reportId"];
-        private static readonly string DatasetId = appSettings["datasetId"];
+        private static readonly string ReportIdVibrationReport01 = appSettings["reportIdVibrationReport01"];
+        private static readonly string DatasetIdVibrationReport01 = appSettings["datasetIdVibrationReport01"];
+        private static readonly string ReportIdVibrationReport02 = appSettings["reportIdVibrationReport02"];
+        private static readonly string DatasetIdVibrationReport02 = appSettings["datasetIdVibrationReport02"];
 
         private static readonly string DevicesDataStream01URL = "https://api.powerbi.com/beta/3d2d2b6f-061a-48b6-b4b3-9312d687e3a1/datasets/ac227ec0-5bfe-4184-85b1-a9643778f1e4/rows?key=zrg4K1om2l4mj97GF6T3p0ze3SlyynHWYRQMdUUSC0BWetzC7bF3RZgPMG4ukznAhGub5aPsDXuQMq540X8hZA%3D%3D";
 
@@ -93,9 +95,11 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
         }
 
         [HttpGet]
-        [Route("run/report")]
-        [Route("run/report/parm/{reportParm}")]
-        public async Task<IActionResult> EmbedReport( string reportParm = null)
+        [Route("run/report/{reportName}")]
+        [Route("run/report/{reportName}/parm/{reportParm}")]
+        [Route("run/report/{reportName}/byKey/{reportParmStart}")]
+        [Route("run/report/{reportName}/byKeyRange/{reportParmStart}/{reportParmEnd}")]
+        public async Task<IActionResult> EmbedReport( string reportName, string reportParm = null, string reportParmStart = null, string reportParmEnd = null)
         {
             // Manage session and Context
             HttpServiceUriBuilder contextUri = new HttpServiceUriBuilder().SetServiceName(this.context.ServiceName);
@@ -113,7 +117,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                 string reportUniqueId = FnvHash.GetUniqueId();
 
 
-                EmbedConfig task = await EmbedReportConfigData(reportUniqueId, reportParm);
+                EmbedConfig task = await EmbedReportConfigData(reportUniqueId, reportName, reportParm, reportParmStart, reportParmEnd);
                 this.ViewData["EmbedToken"] = task.EmbedToken.Token;
                 this.ViewData["EmbedURL"] = task.EmbedUrl;
                 this.ViewData["EmbedId"] = task.Id;
@@ -267,7 +271,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
 
         // PRIVATE METHODS
-        private async Task<EmbedConfig> EmbedReportConfigData(string reportUniqueId, string reportParm)
+        private async Task<EmbedConfig> EmbedReportConfigData(string reportUniqueId, string reportName, string reportParm = null, string reportParmStart = null, string reportParmEnd = null)
         {
             var result = new EmbedConfig();
             var username = "";
@@ -302,6 +306,10 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                 {
                     // Get a list of reports.
                     var reports = await client.Reports.GetReportsInGroupAsync(GroupId);
+                    string ReportId = ReportIdVibrationReport01;
+
+                    if (reportName.Equals("VibrationReport02"))
+                        ReportId = ReportIdVibrationReport02;
 
                     Report report;
                     if (string.IsNullOrEmpty(ReportId))
@@ -355,49 +363,60 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
                     // Now it is time to refresh the data set
 
-                    List<DeviceViewModelList> deviceViewModelList = await DevicesController.GetDevicesDataAsync(reportParm, httpClient, fabricClient, appLifetime );
+                    List<DeviceViewModelList> deviceViewModelList = null;
 
-
-/*                    List<DeviceViewModelList> deviceViewModelList = new List<DeviceViewModelList>();
-                    ServiceUriBuilder uriBuilder = new ServiceUriBuilder(Names.InsightDataServiceName);
-                    Uri serviceUri = uriBuilder.Build();
-
-                    // service may be partitioned.
-                    // this will aggregate device IDs from all partitions
-                    ServicePartitionList partitions = await fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
-
-                    foreach (Partition partition in partitions)
+                    if( reportName.Equals("VibrationReport01") && reportParm != null)
+                        deviceViewModelList = await DevicesController.GetDevicesDataAsync(reportParm, httpClient, fabricClient, appLifetime );
+                    else
                     {
-                        Uri getUrl = new HttpServiceUriBuilder()
-                            .SetServiceName(serviceUri)
-                            .SetPartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey)
-                            .SetServicePathAndQuery($"/api/devices{reportParm}")
-                            .Build();
+                        deviceViewModelList = new List<DeviceViewModelList>();
+                        ServiceUriBuilder uriBuilder = new ServiceUriBuilder(Names.InsightDataServiceName);
+                        Uri serviceUri = uriBuilder.Build();
 
-                        HttpResponseMessage response = await httpClient.GetAsync(getUrl, appLifetime.ApplicationStopping);
+                        // service may be partitioned.
+                        // this will aggregate device IDs from all partitions
+                        ServicePartitionList partitions = await fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
 
-                        if (response.StatusCode == System.Net.HttpStatusCode.OK)
+                        foreach (Partition partition in partitions)
                         {
-                            JsonSerializer serializer = new JsonSerializer();
-                            using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
-                            {
-                                using (JsonTextReader jsonReader = new JsonTextReader(streamReader))
-                                {
-                                    List<DeviceViewModelList> localResult = serializer.Deserialize<List<DeviceViewModelList>>(jsonReader);
+                            string pathAndQuery = null;
 
-                                    if (localResult != null)
+                            if (reportParmEnd == null)
+                                pathAndQuery = $"/api/devices/history/byKey/{reportParmStart}";
+                            else
+                                pathAndQuery = $"/api/devices/history/byKeyRange/{reportParmStart}/{reportParmEnd}";
+
+                            Uri getUrl = new HttpServiceUriBuilder()
+                                .SetServiceName(serviceUri)
+                                .SetPartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey)
+                                .SetServicePathAndQuery(pathAndQuery)
+                                .Build();
+
+                            HttpResponseMessage response = await httpClient.GetAsync(getUrl, appLifetime.ApplicationStopping);
+
+                            if (response.StatusCode == System.Net.HttpStatusCode.OK)
+                            {
+                                JsonSerializer serializer = new JsonSerializer();
+                                using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
+                                {
+                                    using (JsonTextReader jsonReader = new JsonTextReader(streamReader))
                                     {
-                                        foreach (DeviceViewModelList device in localResult)
+                                        List<DeviceViewModelList> localResult = serializer.Deserialize<List<DeviceViewModelList>>(jsonReader);
+
+                                        if (localResult != null)
                                         {
-                                            if (device.DeviceId.Equals(device.DeviceId, StringComparison.InvariantCultureIgnoreCase))
-                                                deviceViewModelList.Add(device);
+                                            foreach (DeviceViewModelList device in localResult)
+                                            {
+                                                if (device.DeviceId.Equals(device.DeviceId, StringComparison.InvariantCultureIgnoreCase))
+                                                    deviceViewModelList.Add(device);
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
+                        
                     }
-*/
 
                     var refreshDataresult = await ReportsDataHandler.PublishReportDataFor(reportUniqueId, DevicesDataStream01URL, deviceViewModelList, context, httpClient, appLifetime.ApplicationStopping, ServiceEventSource.Current );
 

@@ -61,15 +61,15 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
         }
 
         [HttpGet]
-        [Route("history/page/{pageIndex}")]
-        [Route("history/page/{pageIndex}/pageSize/{pageSize}")]
-        [Route("history/{deviceId}/page/{pageIndex}")]
-        [Route("history/{deviceId}/page/{pageIndex}/pageSize/{pageSize}")]
-        public async Task<JsonResult> SearchDevicesHistoryByPage(string deviceId = null, int pageIndex = 0, int pageSize = 20)
+        [Route("history/batchIndex/{batchIndex}/batchSize/{batchSize}")]
+        [Route("history/batchIndex/{batchIndex}/batchSize/{batchSize}/startingAt/{startTimestamp}")]
+        [Route("history/{deviceId}/batchIndex/{batchIndex}/batchSize/{batchSize}")]
+        [Route("history/{deviceId}/batchIndex/{batchIndex}/batchSize/{batchSize}/startingAt/{startTimestamp}")]
+        public async Task<JsonResult> SearchDevicesHistoryByPage(string deviceId = null, int batchIndex = 1, int batchSize = 200, string startTimestamp = null)
         {
             // Manage session and Context
             HttpServiceUriBuilder contextUri = new HttpServiceUriBuilder().SetServiceName(this.context.ServiceName);
-            List<DeviceEventRow> deviceMessages = new List<DeviceEventRow>();
+            DeviceEventRowList deviceMessages = new DeviceEventRowList(batchIndex,batchSize);
 
             ServiceUriBuilder uriBuilder = new ServiceUriBuilder(Names.InsightDataServiceName);
             Uri serviceUri = uriBuilder.Build();
@@ -80,10 +80,15 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
             foreach (Partition partition in partitions)
             {
+                string pathAndQuery = $"/api/devices/history/batchIndex/{batchIndex}/batchSize/{batchSize}";
+
+                if(startTimestamp != null )
+                    pathAndQuery = $"/api/devices/history/batchIndex/{batchIndex}/batchSize/{batchSize}/startingAt/{startTimestamp}";
+
                 Uri getUrl = new HttpServiceUriBuilder()
                     .SetServiceName(serviceUri)
                     .SetPartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey)
-                    .SetServicePathAndQuery($"/api/devices/history/page/{pageIndex}/pageSize/{pageSize}")
+                    .SetServicePathAndQuery(pathAndQuery)
                     .Build();
 
                 HttpResponseMessage response = await httpClient.GetAsync(getUrl, appLifetime.ApplicationStopping);
@@ -95,13 +100,24 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                     {
                         using (JsonTextReader jsonReader = new JsonTextReader(streamReader))
                         {
-                            deviceMessages.AddRange( serializer.Deserialize<List<DeviceEventRow>>(jsonReader));
+                            DeviceEventRowList resultDeviceEventRowList = serializer.Deserialize<DeviceEventRowList>(jsonReader);
+                            
+                            foreach( DeviceEventRow row in resultDeviceEventRowList.Rows)
+                            {
+                                deviceMessages.AddRow(row);
+                            }
+                            deviceMessages.TotalCount += resultDeviceEventRowList.TotalCount;
+
+                            if (deviceMessages.SearchStartTimestamp.ToUnixTimeMilliseconds() < 1000)
+                                deviceMessages.SearchStartTimestamp = resultDeviceEventRowList.SearchStartTimestamp;
+                            else if (resultDeviceEventRowList.SearchStartTimestamp.ToUnixTimeMilliseconds() < deviceMessages.SearchStartTimestamp.ToUnixTimeMilliseconds())
+                                deviceMessages.SearchStartTimestamp = resultDeviceEventRowList.SearchStartTimestamp;
                         }
                     }
                 }
             }
 
-            return this.Json( new { deviceMessages, deviceMessages.Count });
+            return this.Json(deviceMessages);
         }
 
 

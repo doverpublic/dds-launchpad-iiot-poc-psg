@@ -15,7 +15,6 @@ namespace TargetSolution
 {
     public static class Names
     {
-        public const string EventInProgressDictionaryName = "store://events/inprogress/dictionary";
         public const string EventLatestDictionaryName = "store://events/latest/dictionary";
         public const string EventHistoryDictionaryName = "store://events/history/dictionary";
 

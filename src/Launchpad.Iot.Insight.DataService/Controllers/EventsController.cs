@@ -80,8 +80,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
 
             DeviceEventSeries eventList = new DeviceEventSeries(deviceId, events);
 
-            IReliableDictionary<string, DeviceEventSeries> storeLastCompletedMessage = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEventSeries>>(TargetSolution.Names.EventLatestDictionaryName);
-            IReliableDictionary<string, DeviceEventSeries> storeInProgressMessage = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEventSeries>>(TargetSolution.Names.EventInProgressDictionaryName);
+            IReliableDictionary<string, DeviceEventSeries> storeLatestMessage = await this.stateManager.GetOrAddAsync<IReliableDictionary<string, DeviceEventSeries>>(TargetSolution.Names.EventLatestDictionaryName);
             IReliableDictionary<DateTimeOffset, DeviceEventSeries> storeCompletedMessages = await this.stateManager.GetOrAddAsync<IReliableDictionary<DateTimeOffset, DeviceEventSeries>>(TargetSolution.Names.EventHistoryDictionaryName);
 
             string transactionType = "";
@@ -100,7 +99,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                         {
                             transactionType = "In Progress Message";
 
-                            await storeInProgressMessage.AddOrUpdateAsync(
+                            await storeLatestMessage.AddOrUpdateAsync(
                                     tx,
                                     deviceId,
                                     eventList,
@@ -113,27 +112,6 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                             ServiceEventSource.Current.ServiceMessage(
                                 this.context,
                                 $"Data Service Received {events.Count()} events from device {deviceId} - Finished [{transactionType}] - Duration [{duration.TotalMilliseconds}] mills - Traceid[{traceId}]");
-
-                            if (completedMessage != null)
-                            {
-                                messageTimestamp = completedMessage.Timestamp;
-                                transactionType = "Completed Message";
-
-                                await storeLastCompletedMessage.AddOrUpdateAsync(
-                                    tx,
-                                    completedMessage.DeviceId,
-                                    completedMessage,
-                                    (key, currentValue) =>
-                                    {
-                                        return completedMessage;
-                                    }
-                                );
-
-                                duration = DateTime.UtcNow.Subtract(durationCounter);
-                                ServiceEventSource.Current.ServiceMessage(
-                                    this.context,
-                                    $"Data Service - Saved Message to Last Complete Message Store with timestamp [{completedMessage.Timestamp.ToString()}] indexed by timestamp[{messageTimestamp}] from device {deviceId} - Duration [{duration.TotalMilliseconds}] mills - Traceid[{traceId}]");
-                            }
 
                             await tx.CommitAsync();
 
