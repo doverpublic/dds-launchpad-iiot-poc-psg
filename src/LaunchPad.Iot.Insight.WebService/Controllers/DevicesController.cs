@@ -12,6 +12,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
     using System.IO;
     using System.Linq;
     using System.Net.Http;
+    using System.Text;
     using System.Threading.Tasks;
 
     using Microsoft.AspNetCore.Mvc;
@@ -59,6 +60,111 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                 return this.View();
             }
         }
+
+        [HttpGet]
+        [Route("history/download/from/{startTimestamp}/to/{endTimestamp}")]
+        [Route("history/{deviceId}/download/from/{startTimestamp}/to/{endTimestamp}")]
+        public async Task<PhysicalFileResult> SearchDevicesHistoryForDownload(string startTimestamp, string endTimestamp, string deviceId = null )
+        {
+            string bodyPrefix = "[";
+            string bodySuffix = "]";
+            string bodySeparator = ",";
+            bool firstElement = true;
+            string fileName = Path.GetTempFileName();
+            byte[] contentArray;
+            int bufferSize = 4096;
+
+            using (var fileStream = System.IO.File.Create(fileName, bufferSize))
+            {
+                contentArray = Encoding.ASCII.GetBytes(bodyPrefix);
+                fileStream.Write(contentArray, 0, contentArray.Length);
+
+                // Manage session and Context
+                HttpServiceUriBuilder contextUri = new HttpServiceUriBuilder().SetServiceName(this.context.ServiceName);
+
+                ServiceUriBuilder uriBuilder = new ServiceUriBuilder(Names.InsightDataServiceName);
+                Uri serviceUri = uriBuilder.Build();
+
+                // service may be partitioned.
+                // this will aggregate the queue lengths from each partition
+                ServicePartitionList partitions = await this.fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
+
+                foreach (Partition partition in partitions)
+                {
+                    bool keepLooping = true;
+                    int indexStart = 0;
+                    int batchSize = 200;
+
+                    while (keepLooping)
+                    {
+                        string pathAndQuery = $"/api/devices/history/byKeyRange/{startTimestamp}/{endTimestamp}/{indexStart}/{batchSize}";
+
+                        Uri getUrl = new HttpServiceUriBuilder()
+                            .SetServiceName(serviceUri)
+                            .SetPartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey)
+                            .SetServicePathAndQuery(pathAndQuery)
+                            .Build();
+
+                        HttpResponseMessage response = await httpClient.GetAsync(getUrl, appLifetime.ApplicationStopping);
+
+                        if (response.StatusCode == System.Net.HttpStatusCode.OK)
+                        {
+                            JsonSerializer serializer = new JsonSerializer();
+                            using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
+                            {
+                                using (JsonTextReader jsonReader = new JsonTextReader(streamReader))
+                                {
+                                    List<DeviceViewModelList> localResult = serializer.Deserialize<List<DeviceViewModelList>>(jsonReader);
+
+                                    if (localResult != null)
+                                    {
+                                        if (localResult.Count > 0)
+                                        {
+                                            foreach (DeviceViewModelList device in localResult)
+                                            {
+                                                foreach (DeviceViewModel deviceViewModel in device.Events)
+                                                {
+                                                    if (firstElement)
+                                                        firstElement = false;
+                                                    else
+                                                    {
+                                                        contentArray = Encoding.ASCII.GetBytes(bodySeparator);
+                                                        fileStream.Write(contentArray, 0, contentArray.Length);
+                                                    }
+
+                                                    deviceViewModel.DeviceId = device.DeviceId;
+                                                    string objectContent = JsonConvert.SerializeObject(deviceViewModel);
+
+                                                    contentArray = Encoding.ASCII.GetBytes(objectContent);
+                                                    fileStream.Write(contentArray, 0, contentArray.Length);
+                                                }
+                                            }
+                                        }
+                                        else
+                                            keepLooping = false;
+                                    }
+                                    else
+                                    {
+                                        keepLooping = false;
+                                    }
+                                }
+                            }
+                        }
+
+                        indexStart += batchSize;
+                    }
+                    contentArray = Encoding.ASCII.GetBytes(bodySuffix);
+                    fileStream.Write(contentArray, 0, contentArray.Length);
+
+                    fileStream.Flush(true);
+
+                    Response.Headers["content-disposition"] = "attachment; filename= export.json";
+                    Response.ContentType = "text/json";
+                }
+                return PhysicalFile(fileName, "text/json", "export.json");
+            }
+        }
+
 
         [HttpGet]
         [Route("history/batchIndex/{batchIndex}/batchSize/{batchSize}")]

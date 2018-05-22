@@ -57,7 +57,8 @@ namespace Launchpad.Iot.EventsProcessor.ExtenderService
                         ServiceEventSource.Current.Message( "Extender Service Initialized on " + url + " - Dummy url not to be used" );
 
                         return new WebHostBuilder()
-                                    .UseKestrel()
+                                    //.UseKestrel()
+                                    .UseWebListener()
                                     .ConfigureServices(
                                         services => services
                                             .AddSingleton<StatelessServiceContext>(serviceContext)

@@ -1,5 +1,5 @@
-FieldName,timestamp,targetSite,deviceId,measurementType,temperature,batteryLevel,dataPointsCount,dataPoints,
-FieldType,timestamp,string,string,string,integer,integer,integer,jsonArray,
+FieldName,timestamp,targetSite,deviceId,measurementType,tempExternal,tempInternal,batteryLevel,dataPointsCount,dataPoints,
+FieldType,timestamp,string,string,string,integer,integer,integer,integer,jsonArray,
 FieldUsage,auto,key,key,,,,,,
 absoluteMinValue,,,,,0,0,0,,
 absoluteMaxValue,,,,,4096,4096,1025,,

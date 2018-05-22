@@ -22,7 +22,7 @@ namespace Launchpad.Iot.Insight.DataService.Models
             this.EventList = new List<DeviceEvent>();
 
             foreach (DeviceEvent evnt in events)
-                this.EventList.Add(new DeviceEvent(evnt.Timestamp, evnt.MeasurementType, evnt.SensorIndex, evnt.Temperature, evnt.BatteryLevel, evnt.DataPointsCount, evnt.Frequency, evnt.Magnitude));
+                this.EventList.Add(new DeviceEvent(evnt.Timestamp, evnt.MeasurementType, evnt.SensorIndex, evnt.TempExternal, evnt.TempInternal, evnt.BatteryLevel, evnt.DataPointsCount, evnt.Frequency, evnt.Magnitude));
 
             this.Events = this.EventList;
 

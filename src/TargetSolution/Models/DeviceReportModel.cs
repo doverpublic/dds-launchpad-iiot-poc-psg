@@ -23,10 +23,14 @@ namespace Launchpad.Iot.PSG.Model
                                     int batteryPercentageMax,
                                     int batteryPercentageMin,
                                     int batteryPercentageTarget,
-                                    int temperature,
-                                    int temperatureMax,
-                                    int temperatureMin,
-                                    int temperatureTarget,
+                                    int temperatureExternal,
+                                    int temperatureExternalMax,
+                                    int temperatureExternalMin,
+                                    int temperatureExternalTarget,
+                                    int temperatureInternal,
+                                    int temperatureInternalMax,
+                                    int temperatureInternalMin,
+                                    int temperatureInternalTarget,
                                     int dataPointsCount,
                                     string measurementType,
                                     int sensorIndex,
@@ -45,10 +49,14 @@ namespace Launchpad.Iot.PSG.Model
             this.BatteryPercentageMax = batteryPercentageMax;
             this.BatteryPercentageMin = batteryPercentageMin;
             this.BatteryPercentageTarget = batteryPercentageTarget;
-            this.Temperature = temperature;
-            this.TemperatureMax = temperatureMax;
-            this.TemperatureMin = temperatureMin;
-            this.TemperatureTarget = temperatureTarget;
+            this.TemperatureExternal = temperatureExternal;
+            this.TemperatureExternalMax = temperatureExternalMax;
+            this.TemperatureExternalMin = temperatureExternalMin;
+            this.TemperatureExternalTarget = temperatureExternalTarget;
+            this.TemperatureInternal = temperatureInternal;
+            this.TemperatureInternalMax = temperatureInternalMax;
+            this.TemperatureInternalMin = temperatureInternalMin;
+            this.TemperatureInternalTarget = temperatureInternalTarget;
             this.DataPointsCount = dataPointsCount;
             this.MeasurementType = measurementType;
             this.SensorIndex = sensorIndex;
@@ -68,10 +76,14 @@ namespace Launchpad.Iot.PSG.Model
         public int BatteryPercentageMax { get; private set; }
         public int BatteryPercentageMin { get; private set; }
         public int BatteryPercentageTarget { get; private set; }
-        public int Temperature { get; private set; }
-        public int TemperatureMax { get; private set; }
-        public int TemperatureMin { get; private set; }
-        public int TemperatureTarget { get; private set; }
+        public int TemperatureExternal { get; private set; }
+        public int TemperatureExternalMax { get; private set; }
+        public int TemperatureExternalMin { get; private set; }
+        public int TemperatureExternalTarget { get; private set; }
+        public int TemperatureInternal { get; private set; }
+        public int TemperatureInternalMax { get; private set; }
+        public int TemperatureInternalMin { get; private set; }
+        public int TemperatureInternalTarget { get; private set; }
         public int DataPointsCount { get; private set; }
         public string MeasurementType { get; private set; }
         public int SensorIndex { get; private set; }

@@ -1,27 +1,75 @@
-﻿@{
+﻿﻿@{
     ViewData["Title"] = "Devices Page";
 }
 
 <div id="tabs">
     <ul>
-        <li><a href="#tabs-1">Last Posted Data</a></li>
-        <li><a href="#tabs-2">Historical Data</a></li>
-        <li><a href="#tabs-3">Analysis Report</a></li>
+        <li><a href="#tabs-1">Dashboard</a></li>
+        <li><a href="#tabs-2">Data Analysis</a></li>
+        <li><a href="#tabs-3">Historical Data</a></li>
     </ul>
     <div id="tabs-1">
-        <div id="main">
-            <div id="result"></div>
-            <div class="tile">
-                <h3>Count of Device Events Processed:</h3>
-                <div id="queueLength">Loading..</div>
-            </div>
-            <div class="tile">
-                <h3>Devices</h3>
-                <ul id="deviceList"></ul>
-            </div>
-        </div>
+        <iframe width="1280" height="750" src="https://app.powerbi.com/view?r=eyJrIjoiYjEzNzY4MTMtNjU0Mi00OGJiLWIyZjgtYjU4ZWYwMjVhZGZlIiwidCI6IjNkMmQyYjZmLTA2MWEtNDhiNi1iNGIzLTkzMTJkNjg3ZTNhMSIsImMiOjN9" frameborder="0" allowFullScreen="true"></iframe>
     </div>
     <div id="tabs-2">
+        <div id="main">
+            <div class="tile">
+                <div style="width: 100%; overflow: hidden; display: table;">
+                    <div style="display: table-row">
+                        <div style="width: 200px; display: table-cell;">
+                            <h4>Count of Device Events Processed</h4>
+                            <div id="queueLength">Loading..</div>
+                        </div>
+                        <div style="display: table-cell; width: 300px; background: gray;">
+                            <h4>&nbsp;&nbsp;&nbsp;Analysis Report By Period</h4>
+                            <form class="display-inline">
+                                <div class="div-left">
+                                    <span><b>Start</b></span><input id="txtTimestampStart" width="200" style="color: black;" />
+                                </div>
+                                <div class="div-left">
+                                    <span><b>End </b></span><input id="txtTimestampEnd" width="200" style="color: black;" />
+                                </div>
+                                <div class="div-left">
+                                    <label><b>Number of Observations</b></label>
+                                    <select id="selNumberOfObservations" width="50">
+                                        <option value="200">200</option>
+                                        <option value="150">150</option>
+                                        <option value="100">100</option>
+                                        <option value="50" selected="selected">50</option>
+                                        <option value="20">20</option>
+                                        <option value="10">10</option>
+                                        <option value="5">5</option>
+                                    </select>
+                                    &nbsp;&nbsp;&nbsp;
+                                    <button id="btnReport02" type="button" class="gj-button-md">Report</button>
+                                </div>
+                            </form>
+                        </div>
+                        <div style="display: table-cell; width: 10px;">
+                        </div>
+                        <div style="width: 300px;display: table-cell; background: gray;">
+                            <h4>&nbsp;&nbsp;&nbsp;Data Export</h4>
+                            <form class="display-inline">
+                                <div class="div-left">
+                                    <span><b>Start</b></span><input id="txtTimestampStartExp" width="200" style="color: black;" />
+                                </div>
+                                <div class="div-left">
+                                    <span><b>End </b></span><input id="txtTimestampEndExp" width="200" style="color: black;" />
+                                </div>
+                                &nbsp;&nbsp;&nbsp;
+                                <button id="btnExport" type="button" class="gj-button-md">Export</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="tile">
+            <ul id="deviceList"></ul>
+        </div>
+    </div>
+
+    <div id="tabs-3">
         <div class="margin-top-10">
             <div class="float-left">
                 <form class="display-inline">
@@ -65,9 +113,7 @@
             <table id="grid"></table>
         </div>
     </div>
-    <div id="tabs-3">
-        <iframe width="1280" height="750" src="https://app.powerbi.com/view?r=eyJrIjoiYjEzNzY4MTMtNjU0Mi00OGJiLWIyZjgtYjU4ZWYwMjVhZGZlIiwidCI6IjNkMmQyYjZmLTA2MWEtNDhiNi1iNGIzLTkzMTJkNjg3ZTNhMSIsImMiOjN9" frameborder="0" allowFullScreen="true"></iframe>
-    </div>
+</div>
 </div>
 
 @section scripts
@@ -80,7 +126,7 @@
     $('#batchSizeSelect').dropdown();
 
     var path = window.location.pathname.replace(/\/+$/, "");
-    var searchStartTimestamp = "01/01/2018 00:00";
+    var searchStartTimestamp = "01-01-2018 00:00";
     var batchSize = 200;
     var totalCount = 0;
     var batchIndex = 1;
@@ -127,19 +173,74 @@
         }
     });
 
+	$( "#txtTimestamp" ).change(function() {
+        searchStartTimestamp = $( "#txtTimestamp" ).val();
+    });
 
     $(function () {
         $("#tabs").tabs();
     });
 
+    $('#txtTimestampStart').datetimepicker({
+        format: 'mm-dd-yyyy HH:MM TT',
+        minDate: '01-01-2018 00:00',
+        value: searchStartTimestamp,
+        footer: true,
+        modal: true
+    });
+
+    $('#txtTimestampEnd').datetimepicker({
+        format: 'mm-dd-yyyy HH:MM TT',
+        minDate: '01-01-2018 00:00',
+        value: searchStartTimestamp,
+        footer: true,
+        modal: true
+    });
+
+    $('#txtTimestampStartExp').datetimepicker({
+        format: 'mm-dd-yyyy HH:MM TT',
+        minDate: '01-01-2018 00:00',
+        value: searchStartTimestamp,
+        footer: true,
+        modal: true
+    });
+
+    $('#txtTimestampEndExp').datetimepicker({
+        format: 'mm-dd-yyyy HH:MM TT',
+        minDate: '01-01-2018 00:00',
+        value: searchStartTimestamp,
+        footer: true,
+        modal: true
+    });
+
+        var reportPathForReport02ByKeyRange = '/' + '@ViewData["TargetSite"]' + '/run/report/PSG-VibrationDeviceHistoricalAnalysis-01/byKeyRange/';
+    var reportPathForDownloadByKeyRange = '/' + '@ViewData["TargetSite"]' + '/api/devices/history/download/from/';
+
+    $('#btnReport02').on('click', function () {
+        var reportUrl = reportPathForReport02ByKeyRange + $('#txtTimestampStart').val() + "/" + $('#txtTimestampEnd').val() + "/" + $("#selNumberOfObservations").val();
+        //alert( "reportUrl=" + reportUrl);
+        popitup(reportUrl, reportUrl);
+        return false;
+    });
+
+    $('#btnExport').on('click', function () {
+        var exportUrl = reportPathForDownloadByKeyRange + $('#txtTimestampStartExp').val() + "/to/" + $('#txtTimestampEndExp').val();
+        //alert( "exportUrl=[" + exportUrl + "]");
+		window.location.href = encodeURI(exportUrl);
+        return false;
+    });
+
     var grid = "empty";
-    var gridData = {'deviceMessages':{"batchIndex": 1,"batchSize": 200,"searchStartTimestamp": "2018-05-10T03:15:39.9083997+00:00","totalCount":1,"rows":[{"timestamp": "empty","deviceId": "empty","measurementType": "empty","sensorIndex": 0,"temperature": 0,"batteryLevel":0,"dataPointsCount":0}]}};
-    var reportPathForReport01ByKey = '/' + '@ViewData["TargetSite"]' + '/run/report/VibrationReport01/byKey/';
+        var gridData = { 'deviceMessages': { "batchIndex": 1, "batchSize": 200, "searchStartTimestamp": "2018-05-10T03:15:39.9083997+00:00", "totalCount": 1, "rows": [{ "timestamp": "empty", "deviceId": "empty", "measurementType": "empty", "sensorIndex": 0, "temperatureExternal": 0, "temperatureInternal": 0, "batteryLevel":0,"dataPointsCount":0}]}};
+    var reportPathForReport01ByKey = '/' + '@ViewData["TargetSite"]' + '/run/report/PSG-VibrationDeviceReport-01/byKey/';
 
     $(document).ready(function () {
        refreshGridata();
        populateGridData();
        updateRelatedGridata();
+       if( $('#txtTimestamp').val() != searchStartTimestamp )
+		  $('#txtTimestamp').val(searchStartTimestamp);
+	   //alert( "On document ready function - searchStartTimestamp=" + searchStartTimestamp );
     });
 
     $('#btnSearch').on('click', function () {
@@ -151,7 +252,7 @@
             $('#txtTimestamp').val(searchStartTimestamp);
     });
 
-    function Report02(evnt) {
+    function Report01ByKey(evnt) {
         //alert("Url for report =[" + reportPathForReport01ByKey + evnt.data.record.timestamp + "]");
 
         popitup(reportPathForReport01ByKey + evnt.data.record.timestamp,reportPathForReport01ByKey + evnt.data.record.timestamp);
@@ -160,9 +261,9 @@
 
 
     refreshGridata = function () {
-        //alert( 'Grid URL=[' + path + '/history/batchIndex/' + batchIndex + '/batchSize/' + batchSize + ']' );
+        // alert( 'Grid URL=[' + path + '/history/batchIndex/' + batchIndex + '/batchSize/' + batchSize +  '/startingAt/' + searchStartTimestamp + ']' );
         $.ajax({
-            url: path + '/history/batchIndex/' + batchIndex + '/batchSize/' + batchSize,
+            url: encodeURI( path + '/history/batchIndex/' + batchIndex + '/batchSize/' + batchSize + '/startingAt/' + searchStartTimestamp),
             async: false,
             method: 'GET',
             contentType: 'application/json',
@@ -184,11 +285,12 @@
              { field: 'timestamp', title: 'Message Timestamp', width:300},
              { field: 'deviceId', title: 'Device Id', sortable: true },
              { field: 'measurementType', title: 'Measurement Type', sortable: true },
-             { field: 'temperature', title: 'Temperature', sortable: true },
+             { field: 'temperatureExternal', title: 'External Temperature', sortable: true },
+             { field: 'temperatureInternal', title: 'Internal Temperature', sortable: true },
              { field: 'sensorIndex', title: 'Sensor Index', sortable: true },
              { field: 'batteryLevel', title : 'Battery Level', sortable: true },
              { field: 'dataPointsCount', title: 'Data Points Count' },
-             { width: 64, tmpl: '<span class="material-icons gj-cursor-pointer">report</span>', align: 'center', events: { 'click': Report02 } }
+             { width: 64, tmpl: '<span class="material-icons gj-cursor-pointer">report</span>', align: 'center', events: { 'click': Report01ByKey } }
          ],
          pager: { limit: 10 }
       });
@@ -201,13 +303,25 @@
          maxBatchIndex = Math.floor(totalCount / batchSize) + 1;
 
          var searchStartDate = new Date(gridData.searchStartTimestamp);
-         searchStartTimestamp = searchStartDate.getUTCFullYear() + '/' + searchStartDate.getUTCMonth() + '/' + searchStartDate.getUTCDate() + ' ';
-         if( searchStartDate.getHours() < 10 )
-             searchStartTimestamp = searchStartTimestamp + ' 0' + searchStartDate.getUTCHours() + ':';
-         else
-             searchStartTimestamp = searchStartTimestamp + ' ' + searchStartDate.getUTCHours() + ':';
 
-         if( searchStartDate.getMinutes() < 10 )
+		 if( searchStartDate.getUTCMonth() < 10 )
+			searchStartTimestamp = '0' + (parseInt(searchStartDate.getUTCMonth()) + 1) + "-";
+         else
+			searchStartTimestamp = (parseInt(searchStartDate.getUTCMonth()) + 1) + "-";
+
+		 if( searchStartDate.getUTCDate() < 10 )
+			searchStartTimestamp = searchStartTimestamp + '0' + searchStartDate.getUTCDate() + "-";
+         else
+			searchStartTimestamp = searchStartTimestamp + searchStartDate.getUTCDate() + "-";
+
+		 searchStartTimestamp = searchStartTimestamp + searchStartDate.getUTCFullYear() + ' ';
+
+        if (searchStartDate.getUTCHours() < 10 )
+             searchStartTimestamp = searchStartTimestamp + '0' + searchStartDate.getUTCHours() + ':';
+         else
+             searchStartTimestamp = searchStartTimestamp + searchStartDate.getUTCHours() + ':';
+
+        if (searchStartDate.getUTCMinutes() < 10 )
              searchStartTimestamp = searchStartTimestamp + '0' + searchStartDate.getUTCMinutes();
          else
              searchStartTimestamp = searchStartTimestamp + searchStartDate.getUTCMinutes();
@@ -217,8 +331,8 @@
          $('#batchIndex').val(gridData.batchIndex);
 
          $('#txtTimestamp').datetimepicker({
-             format: 'mm/dd/yyyy HH:MM TT',
-             minDate: '01/01/2018 00:00',
+             format: 'mm-dd-yyyy HH:MM TT',
+             minDate: '01-01-2018 00:00',
              value: searchStartTimestamp,
              footer: true,
              modal: true
@@ -226,7 +340,6 @@
     }
 
     $(function() {
-        var $result = $('#result');
         var refreshRate = 3000;
 
         function last(path) {
@@ -236,19 +349,19 @@
 
         refreshDeviceList = function(apiUrl, $deviceList) {
             $.ajax({
-                url: path + apiUrl,
+                url: encodeURI(path + apiUrl),
                 method: 'GET',
                 contentType: 'application/json',
                 dataType: 'json',
                 success: function (devices) {
 
                     //<a id="myLink" title="Click to do something" href = "#" onclick= "MyFunction();return false;" > link text</a >
-                    var reportPathForReport01 = '/' + '@ViewData["TargetSite"]' + '/run/report/VibrationReport01/parm/';
+                    var reportPathForReport01 = '/' + '@ViewData["TargetSite"]' + '/run/report/PSG-VibrationDeviceReport-01/parm/';
 
                     $deviceList.html('');
 
                     $deviceList.append(
-                        '<h4>Last Posted Events By Device</h4>' +
+                        '<h4>Last Posted Event By Device</h4>' +
                         '<hr>'
                     );
 
@@ -260,7 +373,8 @@
                             '<div class="deviceInfo">' +
                             '<h3>' + device.deviceId + '</h3>' + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a id="runReport" href="#" onclick="popitup(' + "'" + reportPathForReport01 + device.deviceId + "','" + reportPathForReport01 + device.deviceId + "');return false;" + '">View Report</a>' +
               							'&nbsp;&nbsp;<label>Measurement Type:' + device.events[0].measurementType + '</label>' +
-              							'&nbsp;&nbsp;<label>Temperature:' + device.events[0].temperature +  '</label>' +
+              							'&nbsp;&nbsp;<label>External Temperature:' + device.events[0].tempExternal +  '</label>' +
+                                        '&nbsp;&nbsp;<label>Internal Temperature:' + device.events[0].tempInternal + '</label>' +
               							'&nbsp;&nbsp;<label>Battery Level:' + device.events[0].batteryLevel +  '</label>' +
               							'&nbsp;&nbsp;<label>Timestamp:' + device.events[0].timestamp +  '</label>' +
               							'&nbsp;&nbsp;<label>Data Points Count:' + device.events[0].dataPointsCount +  '</label>' +
@@ -284,15 +398,13 @@
                     }
                 },
                 error: function (error) {
-                    $result.removeClass();
-                    $result.addClass('errorResult');
-                    $result.html('Failed to refresh info from [' + apiUrl + '] - Message[' + error.responseText + ']');
+                    //var message = 'Failed to refresh device info from [' + apiUrl + '] - Message[' + error.responseText + ']';
+                    //alert(message);
+                    window.location.href = error.responseText;
                 }
             })
             .always(function() {
                 setTimeout(function() {
-                    $result.html('');
-                    $result.removeClass();
                     refreshDeviceList(apiUrl, $deviceList);
                 }, refreshRate);
             });
@@ -300,7 +412,7 @@
 
         refreshQueueLength = function(apiUrl, $queueElement) {
             $.ajax({
-                    url: path + apiUrl,
+                    url: encodeURI( path + apiUrl),
                     method: 'GET',
                     contentType: 'application/json',
                     dataType: 'json',
@@ -308,13 +420,13 @@
                         $queueElement.html(result);
                         },
                     error: function (error) {
-                        window.location.href = error.responseText;
+                        //var message = 'Failed to refresh queue length info from [' + apiUrl + '] - Message[' + error.responseText + ']';
+                        //alert(message);
+                        // the redirection will be handled by the refresh devices call
                     }
             })
             .always(function() {
                 setTimeout(function() {
-                    $result.html('');
-                    $result.removeClass();
                     refreshQueueLength(apiUrl, $queueElement);
                 }, refreshRate);
             });
@@ -327,7 +439,7 @@
 
     function popitup(url, windowName)
     {
-        newwindow = window.open(url, windowName, 'height=1040,width=1300,location=no,menubar=no,status=no,toolbar=no,titlebar=no,left=50,top=50');
+        newwindow = window.open(encodeURI(url), windowName, 'height=1040,width=1300,location=no,menubar=no,status=no,toolbar=no,titlebar=no,left=50,top=50');
         if (window.focus) { newwindow.focus() }
         return false;
     }

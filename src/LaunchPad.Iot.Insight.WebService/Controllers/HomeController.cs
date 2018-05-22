@@ -51,10 +51,6 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
         private static readonly string ClientId = appSettings["clientId"];
         private static readonly string ApiUrl = appSettings["apiUrl"];
         private static readonly string GroupId = appSettings["groupId"];
-        private static readonly string ReportIdVibrationReport01 = appSettings["reportIdVibrationReport01"];
-        private static readonly string DatasetIdVibrationReport01 = appSettings["datasetIdVibrationReport01"];
-        private static readonly string ReportIdVibrationReport02 = appSettings["reportIdVibrationReport02"];
-        private static readonly string DatasetIdVibrationReport02 = appSettings["datasetIdVibrationReport02"];
 
         private static readonly string DevicesDataStream01URL = "https://api.powerbi.com/beta/3d2d2b6f-061a-48b6-b4b3-9312d687e3a1/datasets/ac227ec0-5bfe-4184-85b1-a9643778f1e4/rows?key=zrg4K1om2l4mj97GF6T3p0ze3SlyynHWYRQMdUUSC0BWetzC7bF3RZgPMG4ukznAhGub5aPsDXuQMq540X8hZA%3D%3D";
 
@@ -81,6 +77,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
             this.ViewData["PageTitle"] = "Home";
             this.ViewData["HeaderTitle"] = "Vibration Device Insights";
 
+            ViewBag.RedirectURL = "";
             ViewBag.Message = "";
             return View("Index");
         }
@@ -99,10 +96,13 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
         [Route("run/report/{reportName}/parm/{reportParm}")]
         [Route("run/report/{reportName}/byKey/{reportParmStart}")]
         [Route("run/report/{reportName}/byKeyRange/{reportParmStart}/{reportParmEnd}")]
-        public async Task<IActionResult> EmbedReport( string reportName, string reportParm = null, string reportParmStart = null, string reportParmEnd = null)
+        [Route("run/report/{reportName}/byKeyRange/{reportParmStart}/{reportParmEnd}/{numberOfObservations}")]
+        public async Task<IActionResult> EmbedReport( string reportName, string reportParm = null, string reportParmStart = null, string reportParmEnd = null, int numberOfObservations = (-1))
         {
             // Manage session and Context
             HttpServiceUriBuilder contextUri = new HttpServiceUriBuilder().SetServiceName(this.context.ServiceName);
+
+            ViewBag.RedirectURL = "";
 
             if (HTTPHelper.IsSessionExpired(HttpContext,this))
             {
@@ -117,7 +117,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                 string reportUniqueId = FnvHash.GetUniqueId();
 
 
-                EmbedConfig task = await EmbedReportConfigData(reportUniqueId, reportName, reportParm, reportParmStart, reportParmEnd);
+                EmbedConfig task = await EmbedReportConfigData(reportUniqueId, reportName, reportParm, reportParmStart, reportParmEnd, numberOfObservations);
                 this.ViewData["EmbedToken"] = task.EmbedToken.Token;
                 this.ViewData["EmbedURL"] = task.EmbedUrl;
                 this.ViewData["EmbedId"] = task.Id;
@@ -133,6 +133,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
         {
             // Manage session and Context
             HttpServiceUriBuilder contextUri = new HttpServiceUriBuilder().SetServiceName(this.context.ServiceName);
+            ViewBag.RedirectURL = "";
 
             if (HTTPHelper.IsSessionExpired(HttpContext, this))
             {
@@ -155,6 +156,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
             if (ModelState.IsValid)
             {
                 ViewBag.Message = "";
+                ViewBag.RedirectURL = "";
                 bool newUserRegistration = false;
                 bool userAllowedToLogin = false;
 
@@ -176,7 +178,10 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                         if (result.Result)
                             userAllowedToLogin = true;
                         else
-                            ViewBag.Message = "Error during new user registration";
+                        {
+                            ViewBag.RedirectURL = contextUri.GetServiceNameSiteHomePath();
+                            ViewBag.Message = "Error during new user registration - User already exist in the database";
+                        }
                     }
 
                     if (!userAllowedToLogin && !newUserRegistration)
@@ -196,10 +201,14 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                             if (objUser.Password.Equals(userProfile.Password))
                                 userAllowedToLogin = true;
                             else
+                            {
+                                ViewBag.RedirectURL = contextUri.GetServiceNameSiteHomePath();
                                 ViewBag.Message = "Invalid Username and/or Password";
+                            }
                         }
                         else
                         {
+                            ViewBag.RedirectURL = contextUri.GetServiceNameSiteHomePath();
                             ViewBag.Message = "Error checking user credentials";
                         }
                     }
@@ -215,6 +224,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                         }
                         catch (System.Exception ex)
                         {
+                            ViewBag.RedirectURL = contextUri.GetServiceNameSiteHomePath();
                             ViewBag.Message = "Internal Error During User Login- Report to the System Administrator";
                             Console.WriteLine("On Login Session exception msg=[" + ex.Message + "]");
                         }
@@ -222,6 +232,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                 }
                 else
                 {
+                    ViewBag.RedirectURL = contextUri.GetServiceNameSiteHomePath();
                     ViewBag.Message = "Either username and/or password not provided";
                 }
             }
@@ -241,6 +252,9 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
             // Manage session
             if (!HTTPHelper.IsSessionExpired(HttpContext, this))
                 HTTPHelper.EndSession(HttpContext, this);
+
+            ViewBag.RedirectURL = contextUri.GetServiceNameSiteHomePath();
+
             return Ok(contextUri.GetServiceNameSiteHomePath());
         }
 
@@ -271,7 +285,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
 
         // PRIVATE METHODS
-        private async Task<EmbedConfig> EmbedReportConfigData(string reportUniqueId, string reportName, string reportParm = null, string reportParmStart = null, string reportParmEnd = null)
+        private async Task<EmbedConfig> EmbedReportConfigData(string reportUniqueId, string reportName, string reportParm = null, string reportParmStart = null, string reportParmEnd = null, int numberOfObservations = (-1))
         {
             var result = new EmbedConfig();
             var username = "";
@@ -306,25 +320,21 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                 {
                     // Get a list of reports.
                     var reports = await client.Reports.GetReportsInGroupAsync(GroupId);
-                    string ReportId = ReportIdVibrationReport01;
-
-                    if (reportName.Equals("VibrationReport02"))
-                        ReportId = ReportIdVibrationReport02;
 
                     Report report;
-                    if (string.IsNullOrEmpty(ReportId))
+                    if (string.IsNullOrEmpty(reportName))
                     {
                         // Get the first report in the group.
                         report = reports.Value.FirstOrDefault();
                     }
                     else
                     {
-                        report = reports.Value.FirstOrDefault(r => r.Id == ReportId);
+                        report = reports.Value.FirstOrDefault(r => r.Name.Equals(reportName));
                     }
 
                     if (report == null)
                     {
-                        result.ErrorMessage = $"PowerBI Group has no report registered for id[{ReportId}].";
+                        result.ErrorMessage = $"PowerBI Group has no report registered for Name[{reportName}].";
                         return result;
                     }
 
@@ -365,7 +375,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
                     List<DeviceViewModelList> deviceViewModelList = null;
 
-                    if( reportName.Equals("VibrationReport01") && reportParm != null)
+                    if( reportName.Equals("PSG-VibrationDeviceReport-01") && reportParm != null)
                         deviceViewModelList = await DevicesController.GetDevicesDataAsync(reportParm, httpClient, fabricClient, appLifetime );
                     else
                     {
@@ -380,42 +390,105 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                         foreach (Partition partition in partitions)
                         {
                             string pathAndQuery = null;
+                            int index = 0;
+                            float indexInterval = 1F;
+                            bool keepLooping = true;
+                            int observationsCount = 0;
 
-                            if (reportParmEnd == null)
-                                pathAndQuery = $"/api/devices/history/byKey/{reportParmStart}";
-                            else
-                                pathAndQuery = $"/api/devices/history/byKeyRange/{reportParmStart}/{reportParmEnd}";
-
-                            Uri getUrl = new HttpServiceUriBuilder()
-                                .SetServiceName(serviceUri)
-                                .SetPartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey)
-                                .SetServicePathAndQuery(pathAndQuery)
-                                .Build();
-
-                            HttpResponseMessage response = await httpClient.GetAsync(getUrl, appLifetime.ApplicationStopping);
-
-                            if (response.StatusCode == System.Net.HttpStatusCode.OK)
+                            while(keepLooping)
                             {
-                                JsonSerializer serializer = new JsonSerializer();
-                                using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
+                                if (reportParmEnd == null)
                                 {
-                                    using (JsonTextReader jsonReader = new JsonTextReader(streamReader))
-                                    {
-                                        List<DeviceViewModelList> localResult = serializer.Deserialize<List<DeviceViewModelList>>(jsonReader);
+                                    pathAndQuery = $"/api/devices/history/byKey/{reportParmStart}";
+                                    keepLooping = false;
+                                }
+                                else if (reportParmEnd != null)
+                                {
+                                    pathAndQuery = $"/api/devices/history/byKeyRange/{reportParmStart}/{reportParmEnd}";
+                                    keepLooping = false;
+                                }
+                                else if (numberOfObservations != (-1))
+                                {
+                                    pathAndQuery = $"/api/devices/history/byKeyRange/{reportParmStart}/{reportParmEnd}/{index}/200";
 
-                                        if (localResult != null)
+                                    if (index == 0)
+                                    {
+                                        string getCountPathAndQuery = $"/api/devices/history/count/interval/{reportParmStart}/{reportParmEnd}";
+                                        Uri getCountUrl = new HttpServiceUriBuilder()
+                                                    .SetServiceName(serviceUri)
+                                                    .SetPartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey)
+                                                    .SetServicePathAndQuery(getCountPathAndQuery)
+                                                    .Build();
+
+                                        HttpResponseMessage localResponse = await httpClient.GetAsync(getCountUrl, appLifetime.ApplicationStopping);
+
+                                        if (localResponse.StatusCode == System.Net.HttpStatusCode.OK)
                                         {
-                                            foreach (DeviceViewModelList device in localResult)
+                                            string localResult = await localResponse.Content.ReadAsStringAsync();
+
+                                            long count = Int64.Parse(localResult);
+
+                                            indexInterval = count / numberOfObservations;
+
+                                            if (indexInterval < 1)
+                                                indexInterval = 1;
+                                        }
+                                    }
+                                }
+
+                                Uri getUrl = new HttpServiceUriBuilder()
+                                    .SetServiceName(serviceUri)
+                                    .SetPartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey)
+                                    .SetServicePathAndQuery(pathAndQuery)
+                                    .Build();
+
+                                HttpResponseMessage response = await httpClient.GetAsync(getUrl, appLifetime.ApplicationStopping);
+
+                                if (response.StatusCode == System.Net.HttpStatusCode.OK)
+                                {
+                                    JsonSerializer serializer = new JsonSerializer();
+                                    using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
+                                    {
+                                        using (JsonTextReader jsonReader = new JsonTextReader(streamReader))
+                                        {
+                                            List<DeviceViewModelList> localResult = serializer.Deserialize<List<DeviceViewModelList>>(jsonReader);
+
+                                            if (localResult != null)
                                             {
-                                                if (device.DeviceId.Equals(device.DeviceId, StringComparison.InvariantCultureIgnoreCase))
-                                                    deviceViewModelList.Add(device);
+                                                if (localResult.Count != 0)
+                                                {
+                                                    foreach (DeviceViewModelList device in localResult)
+                                                    {
+                                                        if (index >= (index * indexInterval))
+                                                        {
+                                                            if (device.DeviceId.Equals(device.DeviceId, StringComparison.InvariantCultureIgnoreCase))
+                                                                deviceViewModelList.Add(device);
+                                                            observationsCount++;
+                                                        }
+                                                        index++;
+
+                                                        if (numberOfObservations != (-1))
+                                                        {
+                                                            if (observationsCount == numberOfObservations)
+                                                            {
+                                                                keepLooping = false;
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                else
+                                                    keepLooping = false;
+                                            }
+                                            else
+                                            {
+                                                keepLooping = false;
                                             }
                                         }
                                     }
                                 }
                             }
                         }
-                        
                     }
 
                     var refreshDataresult = await ReportsDataHandler.PublishReportDataFor(reportUniqueId, DevicesDataStream01URL, deviceViewModelList, context, httpClient, appLifetime.ApplicationStopping, ServiceEventSource.Current );

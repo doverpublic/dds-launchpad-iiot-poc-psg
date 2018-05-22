@@ -56,15 +56,15 @@ function GetAuthToken
  
        $authContext = New-Object "Microsoft.IdentityModel.Clients.ActiveDirectory.AuthenticationContext" -ArgumentList $authority
 
-       #$Credential = Get-Credential npinto@dovercorp.com
-       #$userCredentials = New-Object "Microsoft.IdentityModel.Clients.ActiveDirectory.UserPasswordCredential" -ArgumentList $Credential.UserName,$Credential.Password
+       $Credential = Get-Credential npinto@dovercorp.com
+       $userCredentials = New-Object "Microsoft.IdentityModel.Clients.ActiveDirectory.UserPasswordCredential" -ArgumentList $Credential.UserName,$Credential.Password
        
-       $userCredentials = New-Object "Microsoft.IdentityModel.Clients.ActiveDirectory.UserPasswordCredential" -ArgumentList "npinto@dovercorp.com","Xingu@1821"
+       #$userCredentials = New-Object "Microsoft.IdentityModel.Clients.ActiveDirectory.UserPasswordCredential" -ArgumentList "npinto@dovercorp.com","Xingu@1821"
 
 
 
-       #$authResult = $authContext.AcquireToken($resourceAppIdURI, $clientId, $redirectUri, "Auto")
-       $authResult = [Microsoft.IdentityModel.Clients.ActiveDirectory.AuthenticationContextIntegratedAuthExtensions]::AcquireTokenAsync($authContext,$resourceAppIdURI,$clientId,$userCredentials).Result
+       $authResult = $authContext.AcquireToken($resourceAppIdURI, $clientId, $redirectUri, "Auto")
+       # $authResult = [Microsoft.IdentityModel.Clients.ActiveDirectory.AuthenticationContextIntegratedAuthExtensions]::AcquireTokenAsync($authContext,$resourceAppIdURI,$clientId,$userCredentials).Result
 
        return $authResult
 }
@@ -100,10 +100,10 @@ if ($groupID -eq "me") {
 
 
 # List datasets in a group
-$uri = "https://api.powerbi.com/v1.0/$groupsPath/reports"
-Invoke-RestMethod -Uri $uri –Headers $authHeader –Method GET –Verbose | format-list
-.txt
+# $uri = "https://api.powerbi.com/v1.0/$groupsPath/reports"
+# Invoke-RestMethod -Uri $uri –Headers $authHeader –Method GET –Verbose | format-list
+
 
 # List datasets in a group
-$uri = "https://api.powerbi.com/v1.0/$groupsPath/datasets"
-Invoke-RestMethod -Uri $uri –Headers $authHeader –Method GET –Verbose | format-list
+# $uri = "https://api.powerbi.com/v1.0/$groupsPath/datasets"
+# Invoke-RestMethod -Uri $uri –Headers $authHeader –Method GET –Verbose | format-list

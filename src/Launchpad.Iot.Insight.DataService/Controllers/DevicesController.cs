@@ -79,6 +79,50 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         }
 
         [HttpGet]
+        [Route("history/count/interval/{startTimestamp}/{endTimestamp}")]
+        [Route("history/count/{deviceId}/interval/{startTimestamp}/{endTimestamp}")]
+        public async Task<IActionResult> SearchDevicesHistoryCount(string startTimestamp, string endTimestamp = null, string deviceId = null )
+        {
+            int iRet = 0;
+            IReliableDictionary<DateTimeOffset, DeviceEventSeries> storeCompletedMessages = storeCompletedMessages = await this.stateManager.GetOrAddAsync<IReliableDictionary<DateTimeOffset, DeviceEventSeries>>(TargetSolution.Names.EventHistoryDictionaryName);
+
+            if (storeCompletedMessages != null)
+            {
+                DateTimeOffset intervalToSearchStart = DateTimeOffset.Parse(startTimestamp);
+                DateTimeOffset intervalToSearchEnd = DateTimeOffset.UtcNow;
+
+
+                using (ITransaction tx = this.stateManager.CreateTransaction())
+                {
+                    IAsyncEnumerable<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerable = null;
+
+                    if( endTimestamp == null)
+                    {
+                        enumerable = await storeCompletedMessages.CreateEnumerableAsync(
+                                        tx, key => (key.CompareTo(intervalToSearchStart) >= 0), EnumerationMode.Ordered);
+                    }
+                    else
+                    {
+                        intervalToSearchEnd = DateTimeOffset.Parse(endTimestamp);
+                        enumerable = await storeCompletedMessages.CreateEnumerableAsync(
+                                        tx, key => (key.CompareTo(intervalToSearchStart) >= 0) && (key.CompareTo(intervalToSearchEnd) <= 0), EnumerationMode.Ordered);
+                    }
+
+                    IAsyncEnumerator<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerator = enumerable.GetAsyncEnumerator();
+
+                    while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
+                    {
+                        iRet++;
+                    }
+                    await tx.CommitAsync();
+                }
+            }
+            ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - SearchDevicesHistoryCount - Count of[{iRet}] for data range from [{startTimestamp}] to [{endTimestamp ?? "empty"}] - device [{deviceId ?? "All"}]");
+
+            return this.Ok(iRet);
+        }
+
+        [HttpGet]
         [Route("history/interval/{searchIntervalStart}/{searchIntervalEnd}")]
         [Route("history/{deviceId}/interval/{searchIntervalStart}/{searchIntervalEnd}")]
         public async Task<IActionResult> SearchDevicesHistory( string deviceId = null, long searchIntervalStart = 86400000, long searchIntervalEnd = 0)
@@ -124,6 +168,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
             DeviceEventRowList deviceMessages = new DeviceEventRowList(batchIndex,batchSize);
             IReliableDictionary<DateTimeOffset, DeviceEventSeries> storeCompletedMessages = storeCompletedMessages = await this.stateManager.GetOrAddAsync<IReliableDictionary<DateTimeOffset, DeviceEventSeries>>(TargetSolution.Names.EventHistoryDictionaryName);
             DateTimeOffset searchStartTimestamp = DateTimeOffset.Parse("1970-01-01T00:00:00.000Z");
+            bool searchStartTimestampUpdateFlag = true;
 
             if (storeCompletedMessages != null)
             {
@@ -157,8 +202,11 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                     int index = 1;
                     while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
                     {
-                        if (searchStartTimestamp.ToUnixTimeMilliseconds() < 1000)
+                        if (searchStartTimestampUpdateFlag)
+                        {
                             searchStartTimestamp = enumerator.Current.Key;
+                            searchStartTimestampUpdateFlag = false;
+                        }
 
                         if ( deviceId == null || deviceId == enumerator.Current.Value.DeviceId)
                         {
@@ -166,7 +214,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                             {
                                 foreach( DeviceEvent evnt in enumerator.Current.Value.Events)
                                 {
-                                    deviceMessages.AddRow( new DeviceEventRow(enumerator.Current.Key, enumerator.Current.Value.DeviceId, evnt.MeasurementType, evnt.SensorIndex, evnt.Temperature, evnt.BatteryLevel, evnt.DataPointsCount));
+                                    deviceMessages.AddRow( new DeviceEventRow(enumerator.Current.Key, enumerator.Current.Value.DeviceId, evnt.MeasurementType, evnt.SensorIndex, evnt.TempExternal, evnt.TempInternal, evnt.BatteryLevel, evnt.DataPointsCount));
                                     break;
                                 }
                             }
@@ -176,6 +224,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                     await tx.CommitAsync();
                     deviceMessages.TotalCount = index;
                     deviceMessages.SearchStartTimestamp = searchStartTimestamp;
+                    ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - SearchDevicesHistoryByPage - Count of[{deviceMessages.TotalCount}] for data range from [{startTimestamp}] - device [{deviceId ?? "All"}]");
                 }
             }
 
@@ -185,9 +234,11 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         [HttpGet]
         [Route("history/byKey/{startTimestamp}")]
         [Route("history/byKeyRange/{startTimestamp}/{endTimestamp}")]
+        [Route("history/byKeyRange/{startTimestamp}/{endTimestamp}/{indexStart}/{batchSize}")]
         [Route("history/{deviceId}/byKey/{startTimestamp}")]
         [Route("history/{deviceId}/byKeyRange/{startTimestamp}/{endTimestamp}")]
-        public async Task<IActionResult> SearchDevicesHistoryByKeys(string deviceId = null, string startTimestamp = null, string endTimestamp = null)
+        [Route("history/{deviceId}/byKeyRange/{startTimestamp}/{endTimestamp}/{indexStart}/{batchSize}")]
+        public async Task<IActionResult> SearchDevicesHistoryByKeys(string startTimestamp, string endTimestamp = null, int indexStart = (-1), int batchSize = 0, string deviceId = null)
         {
             List<object> deviceMessages = new List<object>();
             IReliableDictionary<DateTimeOffset, DeviceEventSeries> storeCompletedMessages = storeCompletedMessages = await this.stateManager.GetOrAddAsync<IReliableDictionary<DateTimeOffset, DeviceEventSeries>>(TargetSolution.Names.EventHistoryDictionaryName);
@@ -207,14 +258,26 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
 
                     IAsyncEnumerator<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerator = enumerable.GetAsyncEnumerator();
 
+                    int index = 0;
                     while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
                     {
-                        deviceMessages.Add(
-                            new
-                            {
-                                DeviceId = enumerator.Current.Value.DeviceId,
-                                enumerator.Current.Value.Events
-                            });
+                        if(indexStart == (-1) || index >= indexStart)
+                        {
+                            deviceMessages.Add(
+                                new
+                                {
+                                    DeviceId = enumerator.Current.Value.DeviceId,
+                                    enumerator.Current.Value.Events
+                                });
+                        }
+
+                        if ( indexStart != (-1))
+                        {
+                            if (index == (indexStart + batchSize))
+                                break;
+                        }
+
+                        index++;
                     }
                     await tx.CommitAsync();
                 }

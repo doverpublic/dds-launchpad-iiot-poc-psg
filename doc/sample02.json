@@ -3,7 +3,8 @@
 	"targetSite": "client01",
 	"deviceId": "pdm3220",
 	"measurementType": "vibration",
-	"temperature": 260,
+	"tempExternal": 60,
+	"tempInternal": 66,
 	"batteryLevel": 3300,
 	"dataPointsCount": 2,
 	"dataPoints" :[

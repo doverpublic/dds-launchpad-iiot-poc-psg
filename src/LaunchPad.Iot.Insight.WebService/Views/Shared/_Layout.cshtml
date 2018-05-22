@@ -4,9 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["TargetSite"] - @ViewData["PageTitle"]</title>
+    <link href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css" rel="stylesheet">
     <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
-    <link href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css" rel="stylesheet">
 
     <!-- Internal definitions for Dialogs -->
     <style>
@@ -17,8 +17,8 @@
             font-weight: bold;
         }
     </style>
-    <link rel="stylesheet" href="~/css/site.css" />
     <link rel="stylesheet" href="~/css/style.css" />
+    <link rel="stylesheet" href="~/css/site.css" />
     <script>
         var registerNewUser = true;
 
@@ -38,19 +38,23 @@
             </div>
             <div id="headerRight" class="div-right"></div>
             <div id="headerRight1" class="div-right"></div>
+            <div id="messageDisplay" title="Application Message" style="display:none;">
+                <table>
+                    <tr>
+                        <span id="message"></span>
+                    </tr>
+                    <tr>
+                        <p>Close</p>
+                    </tr>
+                </table>
+            </div>
             <div id="registrationLoginDialog" title="User Registration" style="display:none;">
                 @using (Html.BeginForm("login", "Home", FormMethod.Post))
                 {
                     @Html.ValidationSummary(true, "", new { @class = "text-danger" })
-
                     <fieldset>
                         @Html.AntiForgeryToken()
                         @Html.ValidationSummary(true)
-                        @if (@ViewBag.Message != null)
-                        {
-                            <div style="border: 1px solid red">@ViewBag.Message</div>
-                        }
-
                         <table>
                             <tr>
                                 <td><label id="labelFirstName" for="FirstName">First Name</label></td>
@@ -95,6 +99,7 @@
     <script>
         var loginMessage = "@ViewBag.Message";
         var loginUsername = "@ViewBag.UserName";
+        var redirectURL = "@ViewBag.RedirectURL";
         var optLoginRegistration = {
             autoOpen: false,
             modal: false,
@@ -103,6 +108,24 @@
             height: 250,
             width : 400
         };
+
+        var optDisplayMessage = {
+            autoOpen: false,
+            modal: true,
+            hide: "puff",
+            show: "slide",
+            height: 150,
+            width : 600,
+			buttons: {
+                OK: function () {
+                    $(this).dialog("close");
+
+                    if (redirectURL != "")
+                        window.location = redirectURL;
+                }
+            }
+        };
+
 
         var doingLoginAndRegistration = false;
 
@@ -139,7 +162,21 @@
             }
         });
 
-        var loginMessage = "@ViewBag.Message";
+		$("#messageDisplay").dialog(optDisplayMessage);
+
+		if( loginMessage != "")
+		{
+			$("#registrationLoginDialog").hide();
+			$("#message").html(loginMessage)
+			$("#messageDisplay").dialog("open");
+		}
+
+		function sleep(delay)
+		{
+			var start = new Date().getTime();
+			while (new Date().getTime() < start + delay);
+		}
+
 
         if (loginMessage != "") {
             $("#headerRight").html("<button id='openLoginDialog'>Login</button>");
@@ -183,24 +220,27 @@
 
         // logout
         function logout(event) {
+			//alert( "Logout Called");
             event.preventDefault();
             var URL = '@Url.Action("logout", "Home")';
             $.ajax({
                 url: URL,
                 type: "GET",
-                xhrFields: {
+				async: false,
+				xhrFields: {
                     withCredentials: true
-                }
-            }).success(function (res) {
-                alert("on logout success responseText=" + res.responseText);
-                window.location.href = res.responseText;
-                hide_error();
-            }).error(function (res) {
-                alert("on logout error responseText=" + res.responseText);
-                window.location.href = res.responseText;
-            });
+                },
+				success: (function (res) {
+					//alert("on logout success response=" + JSON.stringify(res));
+					window.location.href = res;
+					hide_error();
+				}),
+				error: (function (res) {
+					alert("on logout error response=" + JSON.stringify(res));
+					window.location.href = res.responseText;
+				})
+			});
         }
-
     </script>
 </body>
 </html>

@@ -249,7 +249,7 @@ if ($ApplicationToDeploy -eq 'All'  -or $ApplicationToDeploy -eq 'EventsProcesso
            {
                Publish-UpgradedServiceFabricApplication -ApplicationName "$ApplicationInstanceToUpgrade" `
                 -ApplicationPackagePath "$EventsProcessorApplicationDir\pkg\$Configuration" `
-                -Action "Register" `
+                -Action "RegisterAndUpgrade" `
                 -SkipPackageValidation:$SkipPackageValidation `
                 -CopyPackageTimeoutSec $CopyPackageTimeoutSec `
                 -ErrorAction Continue `
@@ -260,7 +260,7 @@ if ($ApplicationToDeploy -eq 'All'  -or $ApplicationToDeploy -eq 'EventsProcesso
                Publish-UpgradedServiceFabricApplication `
                 -ApplicationPackagePath "$EventsProcessorApplicationDir\pkg\$Configuration" `
                 -ApplicationParameterFilePath "$AdminApplicationDir\pkg\$Configuration\$ParametersfileName" `
-                -Action "RegisterAndUpgrade" `
+                -Action "Register" `
                 -SkipPackageValidation:$SkipPackageValidation `
                 -CopyPackageTimeoutSec $CopyPackageTimeoutSec `
                 -ErrorAction Continue `

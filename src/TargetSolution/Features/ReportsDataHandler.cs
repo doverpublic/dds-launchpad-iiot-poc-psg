@@ -27,12 +27,14 @@ namespace Launchpad.Iot.PSG.Model
 
             if (deviceViewModelList.Count > 0)
             {
-                 DateTimeOffset timestamp = DateTimeOffset.UtcNow; ;
-                bool firstItem = true;
-                List<DeviceReportModel> messages = new List<DeviceReportModel>();
+                DateTimeOffset timestamp = DateTimeOffset.UtcNow; ;
+                Task[] taskList = new Task[deviceViewModelList.Count];
+                int taskListIndex = 0;
 
                 foreach (DeviceViewModelList deviceModel in deviceViewModelList)
                 {
+                    List<DeviceReportModel> messages = new List<DeviceReportModel>();
+                    bool firstItem = true;
                     string devId = deviceModel.DeviceId;
                     IEnumerable<DeviceViewModel> evts = deviceModel.Events;
                     int batteryLevel = 3300;
@@ -44,10 +46,14 @@ namespace Launchpad.Iot.PSG.Model
                     int batteryPercentageMax = 100;
                     int batteryPercentageMin = 0;
                     int batteryPercentageTarget = 15;
-                    int temperature = 0;
-                    int temperatureMax = 200;
-                    int temperatureMin = -50;
-                    int temperatureTarget = 60;
+                    int temperatureExternal = 0;
+                    int temperatureExternalMax = 200;
+                    int temperatureExternalMin = -50;
+                    int temperatureExternalTarget = 60;
+                    int temperatureInternal = 0;
+                    int temperatureInternalMax = 200;
+                    int temperatureInternalMin = -50;
+                    int temperatureInternalTarget = 60;
                     int dataPointsCount = 0;
                     string measurementType = "";
                     int sensorIndex = 0;
@@ -72,7 +78,8 @@ namespace Launchpad.Iot.PSG.Model
                             measurementType = sensorMessage.MeasurementType;
                             dataPointsCount = sensorMessage.DataPointsCount;
                             sensorIndex = sensorMessage.SensorIndex;
-                            temperature = sensorMessage.Temperature;
+                            temperatureExternal = sensorMessage.TempExternal;
+                            temperatureInternal = sensorMessage.TempInternal;
 
                             firstItem = false;
                         }
@@ -94,10 +101,14 @@ namespace Launchpad.Iot.PSG.Model
                                     batteryPercentageMax,
                                     batteryPercentageMin,
                                     batteryPercentageTarget,
-                                    temperature,
-                                    temperatureMax,
-                                    temperatureMin,
-                                    temperatureTarget,
+                                    temperatureExternal,
+                                    temperatureExternalMax,
+                                    temperatureExternalMin,
+                                    temperatureExternalTarget,
+                                    temperatureInternal,
+                                    temperatureInternalMax,
+                                    temperatureInternalMin,
+                                    temperatureInternalTarget,
                                     dataPointsCount,
                                     measurementType,
                                     sensorIndex,
@@ -106,15 +117,11 @@ namespace Launchpad.Iot.PSG.Model
                              );
                         }
                     }
-
-                    bRet = await RESTHandler.ExecuteHttpPOST(publishUrl, messages, httpClient, cancellationToken, serviceEventSource);
-
-                    if (!bRet)
-                    {
-                        serviceEventSourceHelper.ServiceMessage(serviceContext, $"Embed Report - Error during data push for report data");
-                        break;
-                    }
+                    taskList[taskListIndex] = RESTHandler.ExecuteHttpPOST(publishUrl, messages, httpClient, cancellationToken, serviceEventSource);
+                    taskListIndex++;
                 }
+                Task.WaitAll(taskList);
+                bRet = true;
             }
             else
             {

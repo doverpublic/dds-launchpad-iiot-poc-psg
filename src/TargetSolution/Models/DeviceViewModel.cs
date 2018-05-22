@@ -9,28 +9,29 @@ namespace Launchpad.Iot.PSG.Model
 
     public class DeviceViewModel
     {
-        public DeviceViewModel(string id, DateTimeOffset timestamp, string measurementType, int sensorIndex, int temperature, int batteryLevel, int dataPointsCount, int[] frequency, int[] magnitude )
+        public DeviceViewModel(string deviceId, DateTimeOffset timestamp, string measurementType, int sensorIndex, int tempExternal, int tempInternal, int batteryLevel, int dataPointsCount, int[] frequency, int[] magnitude )
         {
-            this.Id = id;
+            this.DeviceId = deviceId;
             this.Timestamp = timestamp;
             this.MeasurementType = measurementType;
             this.SensorIndex = sensorIndex;
-            this.Temperature = temperature;
+            this.TempExternal = tempExternal;
+            this.TempInternal = tempInternal;
             this.BatteryLevel = batteryLevel;
             this.DataPointsCount = dataPointsCount;
             this.Frequency = frequency;
             this.Magnitude = magnitude;
         }
 
-        public string Id { get; private set; }
-
-        public DateTimeOffset Timestamp { get; private set; }
-        public string   MeasurementType { get; private set; }
-        public int      SensorIndex     { get; private set; }
-        public int      Temperature     { get; private set; }
-        public int      BatteryLevel    { get; private set; }
-        public int      DataPointsCount { get; private set; }
-        public int[]    Frequency       { get; private set; }
-        public int[]    Magnitude       { get; private set; }
+        public string DeviceId { get; set; }
+        public DateTimeOffset Timestamp         { get; private set; }
+        public string   MeasurementType         { get; private set; }
+        public int      SensorIndex             { get; private set; }
+        public int      TempExternal            { get; private set; }
+        public int      TempInternal            { get; private set; }
+        public int      BatteryLevel            { get; private set; }
+        public int      DataPointsCount         { get; private set; }
+        public int[]    Frequency               { get; private set; }
+        public int[]    Magnitude               { get; private set; }
     }
 }
