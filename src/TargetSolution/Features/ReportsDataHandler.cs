@@ -67,12 +67,12 @@ namespace Launchpad.Iot.PSG.Model
                             batteryLevel = sensorMessage.BatteryLevel;
                             batteryVoltage = batteryLevel / 1000;
 
-                            if (batteryLevel < 3000)
+                            if (batteryLevel < 2800)
                                 batteryPercentage = 0;
-                            else if (batteryLevel > 4000)
+                            else if (batteryLevel > 3600)
                                 batteryPercentage = 100;
                             else
-                                batteryPercentage = (batteryLevel - 3000) / 10;
+                                batteryPercentage = (batteryLevel - 2800) / 10;
 
                             timestamp = sensorMessage.Timestamp;
                             measurementType = sensorMessage.MeasurementType;

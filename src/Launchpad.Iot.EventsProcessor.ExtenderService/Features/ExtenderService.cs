@@ -87,7 +87,7 @@ namespace Launchpad.Iot.EventsProcessor.ExtenderService
 
             ServiceEventSource.Current.ServiceMessage(this.Context, $"ExtenderService - {ServiceUniqueId} - RunAsync - Starting service  - Data Service URLs[{PublishDataServiceURLs}]");
 
-            DateTimeOffset currentSearchStartingTime = DateTimeOffset.UtcNow.AddHours(-2);
+            DateTimeOffset currentSearchStartingTime = DateTimeOffset.UtcNow.AddHours(-1);
 
             if(PublishDataServiceURLs != null && PublishDataServiceURLs.Length > 0 )
             {
@@ -155,19 +155,18 @@ namespace Launchpad.Iot.EventsProcessor.ExtenderService
 
                                         if (deviceViewModelList.Count > 0)
                                         {
-
                                             DeviceViewModelList lastItem = deviceViewModelList.ElementAt(deviceViewModelList.Count()-1);
 
-                                            currentSearchStartingTime = lastItem.Events.ElementAt(0).Timestamp;
-            
                                             messageCount = deviceViewModelList.Count;
-
                                             await ReportsDataHandler.PublishReportDataFor(reportUniqueId, routingparts[1], deviceViewModelList, this.Context, httpClient, cancellationToken, ServiceEventSource.Current);
-
+                                            ServiceEventSource.Current.ServiceMessage(this.Context, $"ExtenderService - {ServiceUniqueId} - RunAsync - Finished posting messages to report stream - Published total number of collected messages[{messageCount}]");
+                                            currentSearchStartingTime = endTime;
+                                            currentValueForIntervalEnd = global::Iot.Common.Names.ExtenderStandardRetryWaitIntervalsInMills;
                                         }
                                         else
                                         {
                                             messageCount = 0;
+                                            ServiceEventSource.Current.ServiceMessage(this.Context, $"ExtenderService - {ServiceUniqueId} - RunAsync - Could not find any messages in the interval from [{startTime}] to [{endTime}]");
                                         }
                                     }
                                     else
@@ -175,7 +174,6 @@ namespace Launchpad.Iot.EventsProcessor.ExtenderService
                                         messageCount = 0;
                                     }
                                 }
-                                ServiceEventSource.Current.ServiceMessage(this.Context, $"ExtenderService - {ServiceUniqueId} - RunAsync - Finished posting messages to report stream - Total number of messages[{messageCount}]");
                             }
                             catch (Exception ex)
                             {
@@ -184,8 +182,11 @@ namespace Launchpad.Iot.EventsProcessor.ExtenderService
                         }
 
                         currentValueForIntervalEnd += global::Iot.Common.Names.ExtenderStandardRetryWaitIntervalsInMills;
-          
-                        await Task.Delay(global::Iot.Common.Names.ExtenderStandardRetryWaitIntervalsInMills);
+
+                        DateTimeOffset boundaryTime = currentSearchStartingTime.AddMilliseconds(currentValueForIntervalEnd);
+
+                        if (boundaryTime.CompareTo(DateTimeOffset.UtcNow) > 0) 
+                            await Task.Delay(global::Iot.Common.Names.ExtenderStandardRetryWaitIntervalsInMills);
                     }
                 }
             }

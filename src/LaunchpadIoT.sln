@@ -55,7 +55,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Scripts", "Scripts", "{7BEB
 		..\build\functions.psm1 = ..\build\functions.psm1
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Launchpad.Iot.EventsProcessor.ExtenderService", "Launchpad.Iot.EventsProcessor.ExtenderService\Launchpad.Iot.EventsProcessor.ExtenderService.csproj", "{4A21FA1D-7FF9-47DE-BECB-846145AB8C5D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Launchpad.Iot.EventsProcessor.ExtenderService", "Launchpad.Iot.EventsProcessor.ExtenderService\Launchpad.Iot.EventsProcessor.ExtenderService.csproj", "{4A21FA1D-7FF9-47DE-BECB-846145AB8C5D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -170,7 +170,7 @@ Global
 		{4A21FA1D-7FF9-47DE-BECB-846145AB8C5D} = {35FD05F1-64BC-4904-A931-17641E3AABEB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		EnterpriseLibraryConfigurationToolBinariesPathV6 = packages\EnterpriseLibrary.TransientFaultHandling.6.0.1304.0\lib\portable-net45+win+wp8
 		SolutionGuid = {B6BAC812-F280-40FB-A687-5E7D2B6EDADC}
+		EnterpriseLibraryConfigurationToolBinariesPathV6 = packages\EnterpriseLibrary.TransientFaultHandling.6.0.1304.0\lib\portable-net45+win+wp8
 	EndGlobalSection
 EndGlobal

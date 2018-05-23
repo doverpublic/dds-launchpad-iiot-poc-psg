@@ -213,7 +213,7 @@
         modal: true
     });
 
-        var reportPathForReport02ByKeyRange = '/' + '@ViewData["TargetSite"]' + '/run/report/PSG-VibrationDeviceHistoricalAnalysis-01/byKeyRange/';
+    var reportPathForReport02ByKeyRange = '/' + '@ViewData["TargetSite"]' + '/run/report/PSG-VibrationDeviceHistoricalAnalysis-01/byKeyRange/';
     var reportPathForDownloadByKeyRange = '/' + '@ViewData["TargetSite"]' + '/api/devices/history/download/from/';
 
     $('#btnReport02').on('click', function () {
@@ -231,7 +231,7 @@
     });
 
     var grid = "empty";
-        var gridData = { 'deviceMessages': { "batchIndex": 1, "batchSize": 200, "searchStartTimestamp": "2018-05-10T03:15:39.9083997+00:00", "totalCount": 1, "rows": [{ "timestamp": "empty", "deviceId": "empty", "measurementType": "empty", "sensorIndex": 0, "temperatureExternal": 0, "temperatureInternal": 0, "batteryLevel":0,"dataPointsCount":0}]}};
+    var gridData = { 'deviceMessages': { "batchIndex": 1, "batchSize": 200, "searchStartTimestamp": "2018-05-10T03:15:39.9083997+00:00", "totalCount": 1, "rows": [{ "timestamp": "empty", "deviceId": "empty", "measurementType": "empty", "sensorIndex": 0, "temperatureExternal": 0, "temperatureInternal": 0, "batteryLevel":0,"dataPointsCount":0}]}};
     var reportPathForReport01ByKey = '/' + '@ViewData["TargetSite"]' + '/run/report/PSG-VibrationDeviceReport-01/byKey/';
 
     $(document).ready(function () {

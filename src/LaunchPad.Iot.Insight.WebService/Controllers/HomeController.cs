@@ -402,11 +402,6 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                                     pathAndQuery = $"/api/devices/history/byKey/{reportParmStart}";
                                     keepLooping = false;
                                 }
-                                else if (reportParmEnd != null)
-                                {
-                                    pathAndQuery = $"/api/devices/history/byKeyRange/{reportParmStart}/{reportParmEnd}";
-                                    keepLooping = false;
-                                }
                                 else if (numberOfObservations != (-1))
                                 {
                                     pathAndQuery = $"/api/devices/history/byKeyRange/{reportParmStart}/{reportParmEnd}/{index}/200";
@@ -435,6 +430,11 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                                         }
                                     }
                                 }
+                                else if (reportParmEnd != null)
+                                {
+                                    pathAndQuery = $"/api/devices/history/byKeyRange/{reportParmStart}/{reportParmEnd}";
+                                    keepLooping = false;
+                                }
 
                                 Uri getUrl = new HttpServiceUriBuilder()
                                     .SetServiceName(serviceUri)
@@ -459,7 +459,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                                                 {
                                                     foreach (DeviceViewModelList device in localResult)
                                                     {
-                                                        if (index >= (index * indexInterval))
+                                                        if (index >= (observationsCount * indexInterval))
                                                         {
                                                             if (device.DeviceId.Equals(device.DeviceId, StringComparison.InvariantCultureIgnoreCase))
                                                                 deviceViewModelList.Add(device);

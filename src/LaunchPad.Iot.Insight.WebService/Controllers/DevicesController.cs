@@ -189,7 +189,10 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                 string pathAndQuery = $"/api/devices/history/batchIndex/{batchIndex}/batchSize/{batchSize}";
 
                 if(startTimestamp != null )
+                {
                     pathAndQuery = $"/api/devices/history/batchIndex/{batchIndex}/batchSize/{batchSize}/startingAt/{startTimestamp}";
+                    deviceMessages.SearchStartTimestamp = DateTimeOffset.Parse(startTimestamp).ToUniversalTime();
+                }
 
                 Uri getUrl = new HttpServiceUriBuilder()
                     .SetServiceName(serviceUri)
@@ -215,8 +218,6 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                             deviceMessages.TotalCount += resultDeviceEventRowList.TotalCount;
 
                             if (deviceMessages.SearchStartTimestamp.ToUnixTimeMilliseconds() < 1000)
-                                deviceMessages.SearchStartTimestamp = resultDeviceEventRowList.SearchStartTimestamp;
-                            else if (resultDeviceEventRowList.SearchStartTimestamp.ToUnixTimeMilliseconds() < deviceMessages.SearchStartTimestamp.ToUnixTimeMilliseconds())
                                 deviceMessages.SearchStartTimestamp = resultDeviceEventRowList.SearchStartTimestamp;
                         }
                     }

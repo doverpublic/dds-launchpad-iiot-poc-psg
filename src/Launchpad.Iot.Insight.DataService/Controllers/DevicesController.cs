@@ -88,7 +88,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
 
             if (storeCompletedMessages != null)
             {
-                DateTimeOffset intervalToSearchStart = DateTimeOffset.Parse(startTimestamp);
+                DateTimeOffset intervalToSearchStart = DateTimeOffset.Parse(startTimestamp).ToUniversalTime();
                 DateTimeOffset intervalToSearchEnd = DateTimeOffset.UtcNow;
 
 
@@ -182,7 +182,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                     }    
                     else
                     {
-                        searchStartTimestamp = DateTimeOffset.Parse(startTimestamp);
+                        searchStartTimestamp = DateTimeOffset.Parse(startTimestamp).ToUniversalTime();
                         enumerable = await storeCompletedMessages.CreateEnumerableAsync(tx,key => key.CompareTo(searchStartTimestamp) >= 0,EnumerationMode.Ordered);
                     }
 
@@ -245,11 +245,11 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
 
             if (storeCompletedMessages != null)
             {
-                DateTimeOffset intervalToSearchStart = DateTimeOffset.Parse(startTimestamp);
+                DateTimeOffset intervalToSearchStart = DateTimeOffset.Parse(startTimestamp).ToUniversalTime();
                 DateTimeOffset intervalToSearchEnd = intervalToSearchStart;
 
                 if (endTimestamp != null )
-                    intervalToSearchEnd = DateTimeOffset.Parse(endTimestamp);
+                    intervalToSearchEnd = DateTimeOffset.Parse(endTimestamp).ToUniversalTime();
 
                 using (ITransaction tx = this.stateManager.CreateTransaction())
                 {
