@@ -92,7 +92,7 @@ namespace Launchpad.Iot.EventsProcessor.ExtenderService
             if(PublishDataServiceURLs != null && PublishDataServiceURLs.Length > 0 )
             {
                 string[] routingparts = PublishDataServiceURLs.Split(';');
-                int currentValueForIntervalEnd = global::Iot.Common.Names.ExtenderStandardRetryWaitIntervalsInMills;
+                int currentValueForIntervalEnd = global::Iot.Common.Names.ExtenderStandardRetryWaitIntervalsInMills ;
 
                 using (HttpClient httpClient = new HttpClient(new HttpServiceClientHandler()))
                 {

@@ -41,6 +41,6 @@ namespace Iot.Common
         public const int IoTHubRetryWaitIntervalsInMills = 60000;
         public const int EventsProcessorOffsetInterval = 5;
 
-        public const int ExtenderStandardRetryWaitIntervalsInMills = 60000;
+        public const int ExtenderStandardRetryWaitIntervalsInMills = 180000;
     }
 }

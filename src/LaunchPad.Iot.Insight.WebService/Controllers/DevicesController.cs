@@ -61,6 +61,61 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
             }
         }
 
+
+        [HttpGet]
+        [Route("history/{deviceId}/byHoursInterval/{startHours}/{endHours}")]
+        [Route("history/byHoursInterval/{startHours}/{endHours}")]
+        [Route("history/{deviceId}/byHoursInterval/{startHours}/{endHours}/limit/{limit}")]
+        [Route("history/byHoursInterval/{startHours}/{endHours}/limit/{limit}")]
+        public async Task<IActionResult> GetDevicesHistoryByInterval(int startHours, int endHours, string deviceId = null, int limit = Int32.MaxValue)
+        {
+            // Manage session and Context
+            HttpServiceUriBuilder contextUri = new HttpServiceUriBuilder().SetServiceName(this.context.ServiceName);
+            string reportsSecretKey = HTTPHelper.GetQueryParameterValueFor(HttpContext, Names.REPORTS_SECRET_KEY_NAME);
+            List<DeviceViewModelList> deviceViewModelList = new List<DeviceViewModelList>();
+
+            long searchIntervalStart = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - DateTimeOffset.UtcNow.AddHours(startHours * (-1)).ToUnixTimeMilliseconds();
+            long searchIntervalEnd = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - DateTimeOffset.UtcNow.AddHours(endHours * (-1)).ToUnixTimeMilliseconds();
+
+            ServiceUriBuilder uriBuilder = new ServiceUriBuilder(Names.InsightDataServiceName);
+            Uri serviceUri = uriBuilder.Build();
+
+            // service may be partitioned.
+            // this will aggregate device IDs from all partitions
+            ServicePartitionList partitions = await fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
+
+            foreach (Partition partition in partitions)
+            {
+                String pathAndQuery = $"/api/devices/history/interval/{searchIntervalStart}/{searchIntervalEnd}";
+
+                if (deviceId != null && deviceId.Length > 0)
+                    pathAndQuery = $"/api/devices/history/{deviceId}/interval/{searchIntervalStart}/{searchIntervalEnd}";
+
+                Uri getUrl = new HttpServiceUriBuilder()
+                        .SetServiceName(serviceUri)
+                        .SetPartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey)
+                        .SetServicePathAndQuery(pathAndQuery)
+                        .Build();
+
+                HttpResponseMessage response = await httpClient.GetAsync(getUrl, appLifetime.ApplicationStopping);
+
+                if (response.StatusCode == System.Net.HttpStatusCode.OK)
+                {
+                    JsonSerializer serializer = new JsonSerializer();
+                    using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
+                    {
+                        using (JsonTextReader jsonReader = new JsonTextReader(streamReader))
+                        {
+                            deviceViewModelList = serializer.Deserialize<List<DeviceViewModelList>>(jsonReader);
+                        }
+                    }
+                }
+            }
+            if (deviceViewModelList.Count > limit)
+                deviceViewModelList.RemoveRange(limit, deviceViewModelList.Count - limit);
+            return this.Ok(deviceViewModelList);
+        }
+
         [HttpGet]
         [Route("history/download/from/{startTimestamp}/to/{endTimestamp}")]
         [Route("history/{deviceId}/download/from/{startTimestamp}/to/{endTimestamp}")]
@@ -273,7 +328,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
             return this.Ok(count);
         }
-    
+
 
         [HttpGet]
         [Route("device/{deviceId}")]

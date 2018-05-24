@@ -123,8 +123,8 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         }
 
         [HttpGet]
-        [Route("history/interval/{searchIntervalStart}/{searchIntervalEnd}")]
-        [Route("history/{deviceId}/interval/{searchIntervalStart}/{searchIntervalEnd}")]
+            [Route("history/interval/{searchIntervalStart}/{searchIntervalEnd}")]
+            [Route("history/{deviceId}/interval/{searchIntervalStart}/{searchIntervalEnd}")]
         public async Task<IActionResult> SearchDevicesHistory( string deviceId = null, long searchIntervalStart = 86400000, long searchIntervalEnd = 0)
         {
             List<object> deviceMessages = new List<object>();

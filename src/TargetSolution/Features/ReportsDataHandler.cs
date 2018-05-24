@@ -28,12 +28,11 @@ namespace Launchpad.Iot.PSG.Model
             if (deviceViewModelList.Count > 0)
             {
                 DateTimeOffset timestamp = DateTimeOffset.UtcNow; ;
-                Task[] taskList = new Task[deviceViewModelList.Count];
-                int taskListIndex = 0;
+                int messageCounter = 0;
+                List<DeviceReportModel> messages = new List<DeviceReportModel>();
 
                 foreach (DeviceViewModelList deviceModel in deviceViewModelList)
                 {
-                    List<DeviceReportModel> messages = new List<DeviceReportModel>();
                     bool firstItem = true;
                     string devId = deviceModel.DeviceId;
                     IEnumerable<DeviceViewModel> evts = deviceModel.Events;
@@ -115,12 +114,21 @@ namespace Launchpad.Iot.PSG.Model
                                     frequency,
                                     magnitude)
                              );
+                            messageCounter++;
+
+                            if( messageCounter == 9000)
+                            {
+                                await RESTHandler.ExecuteHttpPOST(publishUrl, messages, httpClient, cancellationToken, serviceEventSource);
+
+                                messages.Clear();
+                                messageCounter = 0;
+                            }
                         }
                     }
-                    taskList[taskListIndex] = RESTHandler.ExecuteHttpPOST(publishUrl, messages, httpClient, cancellationToken, serviceEventSource);
-                    taskListIndex++;
+
+                    if ( messageCounter > 0 )
+                        await RESTHandler.ExecuteHttpPOST(publishUrl, messages, httpClient, cancellationToken, serviceEventSource);
                 }
-                Task.WaitAll(taskList);
                 bRet = true;
             }
             else
