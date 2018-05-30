@@ -7,8 +7,9 @@ namespace Launchpad.Iot.PSG.Model
 {
     public class DeviceEventRow
     {
-        public DeviceEventRow( DateTimeOffset timestamp, string deviceId, string measurementType, int sensorIndex, int tempExternal, int tempInternal, int batteryLevel, int dataPointsCount)
+        public DeviceEventRow( DateTimeOffset keyTimestamp, DateTimeOffset timestamp, string deviceId, string measurementType, int sensorIndex, int tempExternal, int tempInternal, int batteryLevel, int dataPointsCount)
         {
+            this.KeyTimestamp = keyTimestamp;
             this.Timestamp = timestamp;
             this.DeviceId = deviceId;
             this.MeasurementType = measurementType;
@@ -19,6 +20,7 @@ namespace Launchpad.Iot.PSG.Model
             this.DataPointsCount = dataPointsCount;
         }
 
+        public DateTimeOffset KeyTimestamp { get; set; }
         public DateTimeOffset Timestamp { get; set; }
         public string DeviceId { get; set; }
         public string MeasurementType { get; set; }

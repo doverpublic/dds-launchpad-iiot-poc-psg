@@ -79,22 +79,22 @@ a {
     color: white;
 }
 
-    a:link {
-        color: yellow;
-    }
+a:link {
+    color: black;
+}
 
-    a:visited {
-        color: #AAAAAA;
-    }
+a:visited {
+    color: #AAAAAA;
+}
 
-    a:active {
-        color: green;
-    }
+a:active {
+    color: green;
+}
 
-    a:hover {
-        background-color: #ddd;
-        color: black;
-    }
+a:hover {
+    background-color: #dddd;
+    color: blue;
+}
 
 .previous {
     background-color: #f1f1f1;

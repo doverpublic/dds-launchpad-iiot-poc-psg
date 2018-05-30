@@ -13,7 +13,9 @@ namespace Launchpad.Iot.PSG.Model
 
         public DeviceReportModel(string reportUniqueId,
                                     DateTimeOffset timestamp,
+                                    int timestampIndex,
                                     string deviceId,
+                                    int deviceIdIndex,
                                     int batteryLevel,
                                     int batteryVoltage,
                                     int batteryMax,
@@ -39,7 +41,9 @@ namespace Launchpad.Iot.PSG.Model
         {
             this.ReportUniqueId = reportUniqueId;
             this.Timestamp = timestamp;
+            this.TimestampIndex = timestampIndex;
             this.DeviceId = deviceId;
+            this.DeviceIdIndex = deviceIdIndex;
             this.BatteryLevel = batteryLevel;
             this.BatteryVoltage = batteryVoltage;
             this.BatteryMax = batteryMax;
@@ -66,7 +70,9 @@ namespace Launchpad.Iot.PSG.Model
 
         public string ReportUniqueId { get; private set; }
         public DateTimeOffset Timestamp { get; private set; }
+        public int TimestampIndex { get; private set; }
         public string DeviceId { get; private set; }
+        public int DeviceIdIndex { get; private set; }
         public int BatteryLevel { get; private set; }
         public int BatteryVoltage { get; private set; }
         public int BatteryMax { get; private set; }

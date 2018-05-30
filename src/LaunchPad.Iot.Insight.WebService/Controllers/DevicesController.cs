@@ -7,6 +7,8 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 {
     using System;
     using System.Collections.Generic;
+    using System.Collections.Specialized;
+    using System.Configuration;
     using System.Fabric;
     using System.Fabric.Query;
     using System.IO;
@@ -31,6 +33,15 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
         private readonly HttpClient httpClient;
 
         private readonly StatelessServiceContext context;
+        private static NameValueCollection appSettings = ConfigurationManager.AppSettings;
+
+        private static readonly string Username = appSettings["pbiUsername"];
+        private static readonly string Password = appSettings["pbiPassword"];
+        private static readonly string AuthorityUrl = appSettings["authorityUrl"];
+        private static readonly string ResourceUrl = appSettings["resourceUrl"];
+        private static readonly string ClientId = appSettings["clientId"];
+        private static readonly string ApiUrl = appSettings["apiUrl"];
+        private static readonly string GroupId = appSettings["groupId"];
 
         public DevicesController(FabricClient fabricClient, HttpClient httpClient, IApplicationLifetime appLifetime, StatelessServiceContext context)
         {
@@ -43,7 +54,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
         [HttpGet]
         [Route("")]
-        public IActionResult Devices()
+        public async Task<ActionResult> Devices()
         {
             // Manage session and Context
             HttpServiceUriBuilder contextUri = new HttpServiceUriBuilder().SetServiceName(this.context.ServiceName);
@@ -57,22 +68,34 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                 this.ViewData["TargetSite"] = contextUri.GetServiceNameSite();
                 this.ViewData["PageTitle"] = "Devices";
                 this.ViewData["HeaderTitle"] = "Devices Dashboard";
+
+                string reportUniqueId = FnvHash.GetUniqueId();
+                string reportName = "PSG-VibrationDeviceReport-02"; // the dashboard
+
+                EmbedConfig task = await ReportsHandler.GetEmbedReportConfigData(ClientId, GroupId, Username, Password, AuthorityUrl, ResourceUrl, ApiUrl, reportUniqueId, reportName, this.context, ServiceEventSource.Current);
+
+                this.ViewData["EmbedToken"] = task.EmbedToken.Token;
+                this.ViewData["EmbedURL"] = task.EmbedUrl;
+                this.ViewData["EmbedId"] = task.Id;
+                this.ViewData["ReportUniqueId"] = "";
+
                 return this.View();
             }
         }
-
 
         [HttpGet]
         [Route("history/{deviceId}/byHoursInterval/{startHours}/{endHours}")]
         [Route("history/byHoursInterval/{startHours}/{endHours}")]
         [Route("history/{deviceId}/byHoursInterval/{startHours}/{endHours}/limit/{limit}")]
         [Route("history/byHoursInterval/{startHours}/{endHours}/limit/{limit}")]
-        public async Task<IActionResult> GetDevicesHistoryByInterval(int startHours, int endHours, string deviceId = null, int limit = Int32.MaxValue)
+        [Route("history/{deviceId}/byHoursInterval/{startHours}/{endHours}/limit/{limit}/minMagnitudeAllowed/{minMagnitudeAllowed}")]
+        [Route("history/byHoursInterval/{startHours}/{endHours}/limit/{limit}/minMagnitudeAllowed/{minMagnitudeAllowed}")]
+        public async Task<IActionResult> GetDevicesHistoryByInterval(int startHours, int endHours, string deviceId = null, int limit = Int32.MaxValue, int minMagnitudeAllowed = 1)
         {
             // Manage session and Context
             HttpServiceUriBuilder contextUri = new HttpServiceUriBuilder().SetServiceName(this.context.ServiceName);
             string reportsSecretKey = HTTPHelper.GetQueryParameterValueFor(HttpContext, Names.REPORTS_SECRET_KEY_NAME);
-            List<DeviceViewModelList> deviceViewModelList = new List<DeviceViewModelList>();
+            List<DeviceHistoricalReportModel> deviceHistoricalReportModelList = new List<DeviceHistoricalReportModel>();
 
             long searchIntervalStart = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - DateTimeOffset.UtcNow.AddHours(startHours * (-1)).ToUnixTimeMilliseconds();
             long searchIntervalEnd = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - DateTimeOffset.UtcNow.AddHours(endHours * (-1)).ToUnixTimeMilliseconds();
@@ -86,10 +109,10 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
 
             foreach (Partition partition in partitions)
             {
-                String pathAndQuery = $"/api/devices/history/interval/{searchIntervalStart}/{searchIntervalEnd}";
+                String pathAndQuery = $"/api/devices/history/interval/{searchIntervalStart}/{searchIntervalEnd}/limit/{limit}";
 
                 if (deviceId != null && deviceId.Length > 0)
-                    pathAndQuery = $"/api/devices/history/{deviceId}/interval/{searchIntervalStart}/{searchIntervalEnd}";
+                    pathAndQuery = $"/api/devices/history/{deviceId}/interval/{searchIntervalStart}/{searchIntervalEnd}/limit/{limit}";
 
                 Uri getUrl = new HttpServiceUriBuilder()
                         .SetServiceName(serviceUri)
@@ -106,14 +129,103 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                     {
                         using (JsonTextReader jsonReader = new JsonTextReader(streamReader))
                         {
-                            deviceViewModelList = serializer.Deserialize<List<DeviceViewModelList>>(jsonReader);
+                            List<DeviceViewModelList> deviceViewModelListResult = serializer.Deserialize<List<DeviceViewModelList>>(jsonReader);
+
+                            string uniqueId = FnvHash.GetUniqueId();
+                            List<string> deviceList = new List<string>();
+                            List<DateTimeOffset> timestampList = new List<DateTimeOffset>();
+                            foreach(DeviceViewModelList deviceViewModelList in deviceViewModelListResult)
+                            {
+                                int deviceIdIndex = 0;
+
+                                if(  deviceList.Contains(deviceViewModelList.DeviceId) )
+                                    deviceIdIndex = deviceList.IndexOf(deviceViewModelList.DeviceId);
+                                else
+                                {
+                                    deviceList.Add(deviceViewModelList.DeviceId);
+                                    deviceIdIndex = deviceList.IndexOf(deviceViewModelList.DeviceId);
+                                }
+
+                                int timesampIndex = 0;
+
+                                if (timestampList.Contains(deviceViewModelList.Events.ElementAt(0).Timestamp))
+                                    timesampIndex = timestampList.IndexOf(deviceViewModelList.Events.ElementAt(0).Timestamp);
+                                else
+                                {
+                                    timestampList.Add(deviceViewModelList.Events.ElementAt(0).Timestamp);
+                                    timesampIndex = timestampList.IndexOf(deviceViewModelList.Events.ElementAt(0).Timestamp);
+                                }
+
+                                int batteryVoltage = deviceViewModelList.Events.ElementAt(0).BatteryLevel / 1000;
+                                int batteryPercentage = 0;
+
+                                if (deviceViewModelList.Events.ElementAt(0).BatteryLevel < 2800)
+                                    batteryPercentage = 0;
+                                else if (deviceViewModelList.Events.ElementAt(0).BatteryLevel > 3600)
+                                    batteryPercentage = 100;
+                                else
+                                    batteryPercentage = (deviceViewModelList.Events.ElementAt(0).BatteryLevel - 2800) / 10;
+
+                                int minAllowedFrequency = 0;
+                                bool needReferencEntry = true;
+                                foreach (DeviceViewModel evnt in deviceViewModelList.Events )
+                                {
+                                    for( int index = 0; index < evnt.DataPointsCount; index++ )
+                                    {
+                                        if(evnt.Magnitude[index] >= minMagnitudeAllowed)
+                                        {
+                                            needReferencEntry = false;
+                                            DeviceHistoricalReportModel message = new DeviceHistoricalReportModel(
+                                                                                        uniqueId,
+                                                                                        evnt.Timestamp,
+                                                                                        timesampIndex,
+                                                                                        evnt.DeviceId,
+                                                                                        deviceIdIndex,
+                                                                                        evnt.BatteryLevel,
+                                                                                        batteryVoltage,
+                                                                                        batteryPercentage,
+                                                                                        evnt.TempExternal,
+                                                                                        evnt.TempInternal,
+                                                                                        evnt.DataPointsCount,
+                                                                                        evnt.MeasurementType,
+                                                                                        evnt.SensorIndex,
+                                                                                        evnt.Frequency[index],
+                                                                                        evnt.Magnitude[index]);
+                                            deviceHistoricalReportModelList.Add(message);
+
+                                            if (minAllowedFrequency == 0)
+                                                minAllowedFrequency = evnt.Frequency[index];
+                                        }
+                                    }
+                                }
+
+                                if( needReferencEntry )
+                                {
+                                    DeviceHistoricalReportModel message = new DeviceHistoricalReportModel(
+                                                                                uniqueId,
+                                                                                deviceViewModelList.Events.ElementAt(0).Timestamp,
+                                                                                timesampIndex,
+                                                                                deviceViewModelList.Events.ElementAt(0).DeviceId,
+                                                                                deviceIdIndex,
+                                                                                deviceViewModelList.Events.ElementAt(0).BatteryLevel,
+                                                                                batteryVoltage,
+                                                                                batteryPercentage,
+                                                                                deviceViewModelList.Events.ElementAt(0).TempExternal,
+                                                                                deviceViewModelList.Events.ElementAt(0).TempInternal,
+                                                                                deviceViewModelList.Events.ElementAt(0).DataPointsCount,
+                                                                                deviceViewModelList.Events.ElementAt(0).MeasurementType,
+                                                                                deviceViewModelList.Events.ElementAt(0).SensorIndex,
+                                                                                minAllowedFrequency,
+                                                                                minMagnitudeAllowed);
+                                    deviceHistoricalReportModelList.Add(message);
+                                }
+                            }
                         }
                     }
                 }
             }
-            if (deviceViewModelList.Count > limit)
-                deviceViewModelList.RemoveRange(limit, deviceViewModelList.Count - limit);
-            return this.Ok(deviceViewModelList);
+
+            return this.Ok(deviceHistoricalReportModelList);
         }
 
         [HttpGet]

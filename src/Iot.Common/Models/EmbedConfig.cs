@@ -2,7 +2,7 @@
 using System;
 using System.Threading.Tasks;
 
-namespace Launchpad.Iot.Insight.WebService.ViewModels
+namespace Iot.Common
 {
     public class EmbedConfig
     {
@@ -31,7 +31,7 @@ namespace Launchpad.Iot.Insight.WebService.ViewModels
 
         public string Roles { get; set; }
 
-        public string ErrorMessage { get; internal set; }
+        public string ErrorMessage { get; set; }
 
         public static implicit operator Task<object>(EmbedConfig v)
         {

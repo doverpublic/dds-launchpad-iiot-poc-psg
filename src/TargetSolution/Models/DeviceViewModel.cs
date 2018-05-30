@@ -23,7 +23,7 @@ namespace Launchpad.Iot.PSG.Model
             this.Magnitude = magnitude;
         }
 
-        public string DeviceId { get; set; }
+        public string DeviceId                  { get; set; }
         public DateTimeOffset Timestamp         { get; private set; }
         public string   MeasurementType         { get; private set; }
         public int      SensorIndex             { get; private set; }
