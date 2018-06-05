@@ -1,8 +1,8 @@
 {
   "visual": {
-    "name": "PSG-VibrationDeviceHistoricalAnalysis-01",
-    "displayName": "PSG-VibrationDeviceHistoricalAnalysis-01",
-    "guid": "sampleRHTMLVisual0E6396B87C1B485A8D1FDDCCDF885546",
+    "name": "PSG-VibrationDeviceReport-Frequency",
+    "displayName": "PSG-VibrationDeviceReport-Frequency",
+    "guid": "FrequencyRHTMLVisual0E6396B87C1B485A8D1FDDCCDF885547",
     "visualClassName": "Visual",
     "version": "1.0.0",
     "description": "",

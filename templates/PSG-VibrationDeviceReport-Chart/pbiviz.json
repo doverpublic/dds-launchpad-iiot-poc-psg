@@ -1,8 +1,8 @@
 {
   "visual": {
-    "name": "PSG-VibrationDeviceReport-02",
-    "displayName": "PSG-VibrationDeviceReport-02",
-    "guid": "sampleRHTMLVisual0E6396B87C1B485A8D1FDDCCDF885546",
+    "name": "PSG-VibrationDeviceReport-Chart",
+    "displayName": "PSG-VibrationDeviceReport-Chart",
+    "guid": "VibrationChartRHTMLVisual0E6396B87C1B485A8D1FDDCCDF885546",
     "visualClassName": "Visual",
     "version": "1.0.0",
     "description": "",
