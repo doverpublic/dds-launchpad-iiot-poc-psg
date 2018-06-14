@@ -25,7 +25,7 @@ namespace Launchpad.Iot.PSG.Model
         public int BatchSize { get; set; }
         public DateTimeOffset SearchStartTimestamp { get; set; }
         public IEnumerable<DeviceEventRow> Rows { get; private set; }
-        public int TotalCount { get; set; }
+        public long TotalCount { get; set; }
 
         public void AddRow( DeviceEventRow row )
         {

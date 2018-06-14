@@ -158,7 +158,7 @@ namespace Launchpad.Iot.EventsProcessor.ExtenderService
                                             DeviceViewModelList lastItem = deviceViewModelList.ElementAt(deviceViewModelList.Count()-1);
 
                                             messageCount = deviceViewModelList.Count;
-                                            await ReportsHandler.PublishReportDataFor(reportUniqueId, routingparts[1], deviceViewModelList, this.Context, httpClient, cancellationToken, ServiceEventSource.Current,1);
+                                            await ReportsHandler.PublishReportDataFor(reportUniqueId, routingparts[1], deviceViewModelList, this.Context, httpClient, cancellationToken, ServiceEventSource.Current,3);
                                             ServiceEventSource.Current.ServiceMessage(this.Context, $"ExtenderService - {ServiceUniqueId} - RunAsync - Finished posting messages to report stream - Published total number of collected messages[{messageCount}]");
                                             currentSearchStartingTime = endTime;
                                             currentValueForIntervalEnd = global::Iot.Common.Names.ExtenderStandardRetryWaitIntervalsInMills;

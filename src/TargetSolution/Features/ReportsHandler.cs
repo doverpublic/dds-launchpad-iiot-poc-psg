@@ -206,7 +206,6 @@ namespace Launchpad.Iot.PSG.Model
                             timestamp = sensorMessage.Timestamp;
                             measurementType = sensorMessage.MeasurementType;
                             dataPointsCount = sensorMessage.DataPointsCount;
-                            sensorIndex = sensorMessage.SensorIndex;
                             temperatureExternal = sensorMessage.TempExternal;
                             temperatureInternal = sensorMessage.TempInternal;
 
@@ -223,6 +222,7 @@ namespace Launchpad.Iot.PSG.Model
 
                         for (int index = 0; index < sensorMessage.Frequency.Length; index++)
                         {
+                            sensorIndex = sensorMessage.SensorIndex;
                             frequency = sensorMessage.Frequency[index];
                             magnitude = sensorMessage.Magnitude[index];
 
@@ -346,7 +346,7 @@ namespace Launchpad.Iot.PSG.Model
                             if( !firstSet )
                                 await Task.Delay(global::Iot.Common.Names.IntervalBetweenReportStreamingCalls);
 
-                            await RESTHandler.ExecuteHttpPOST(publishUrl, messages, httpClient, cancellationToken, serviceEventSource);
+                            await RESTHandler.ExecuteHttpPOST(publishUrl, messagesFinalSet, httpClient, cancellationToken, serviceEventSource);
                             serviceEventSourceHelper.ServiceMessage(serviceContext, $"PublishReportDataFor -  Sending set [{messageSet}] with number of rows [{messageCounter}] generated from messages [{deviceViewModelList.Count}] to URL [{publishUrl}]");
 
                             messagesFinalSet.Clear();
@@ -361,7 +361,7 @@ namespace Launchpad.Iot.PSG.Model
                         if (!firstSet)
                             await Task.Delay(global::Iot.Common.Names.IntervalBetweenReportStreamingCalls);
 
-                        await RESTHandler.ExecuteHttpPOST(publishUrl, messages, httpClient, cancellationToken, serviceEventSource);
+                        await RESTHandler.ExecuteHttpPOST(publishUrl, messagesFinalSet, httpClient, cancellationToken, serviceEventSource);
                         serviceEventSourceHelper.ServiceMessage(serviceContext, $"PublishReportDataFor -  Sending set [{messageSet}] with number of rows [{messageCounter}] generated from messages [{deviceViewModelList.Count}] to URL [{publishUrl}]");
                     }
                 }

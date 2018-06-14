@@ -83,9 +83,9 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         [Route("history/count/{deviceId}/interval/{startTimestamp}/{endTimestamp}")]
         public async Task<IActionResult> SearchDevicesHistoryCount(string startTimestamp, string endTimestamp = null, string deviceId = null )
         {
-            int iRet = await SearchDevicesHistoryCountInternal(startTimestamp, endTimestamp, deviceId);
+            long lRet = await SearchDevicesHistoryCountInternal(startTimestamp, endTimestamp, deviceId);
 
-            return this.Ok(iRet);
+            return this.Ok(lRet);
         }
 
         [HttpGet]
@@ -106,7 +106,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
 
                 if( limit != 0 )
                 {
-                    int totalCount = await SearchDevicesHistoryCountInternal(intervalToSearchStart.ToString("u"), intervalToSearchEnd.ToString("u"), deviceId);
+                    long totalCount = await SearchDevicesHistoryCountInternal(intervalToSearchStart.ToString("u"), intervalToSearchEnd.ToString("u"), deviceId);
 
                     if (totalCount > limit)
                         selectInterval = totalCount / limit;
@@ -168,57 +168,87 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
 
             if (storeCompletedMessages != null)
             {
+                long totalCount = await GetQueueLengthAsyncInternal();
+
                 using (ITransaction tx = this.stateManager.CreateTransaction())
                 {
-                    IAsyncEnumerable<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerable = null;
-                        
-                    if(startTimestamp == null)
+                    if(totalCount > 0)
                     {
-                        enumerable = await storeCompletedMessages.CreateEnumerableAsync(tx, EnumerationMode.Ordered);
-                    }    
-                    else
-                    {
-                        searchStartTimestamp = DateTimeOffset.Parse(startTimestamp).ToUniversalTime();
-                        enumerable = await storeCompletedMessages.CreateEnumerableAsync(tx,key => key.CompareTo(searchStartTimestamp) >= 0,EnumerationMode.Ordered);
-                    }
+                        bool useIndexForTotalCount = false;
+                        IAsyncEnumerable<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerable = null;
+                        IAsyncEnumerator<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerator = null;
 
-                    IAsyncEnumerator<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerator = enumerable.GetAsyncEnumerator();
-
-                    int indexStart = batchIndex;
-
-                    if (indexStart < 0)
-                        indexStart = 0;
-                    else if (indexStart > 0)
-                        indexStart--;
-
-                    indexStart = indexStart * batchSize;
-
-                    int indexEnd = indexStart + batchSize;
-
-                    int index = 1;
-                    while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
-                    {
-                        if (searchStartTimestampUpdateFlag)
+                        if (startTimestamp == null)
                         {
-                            searchStartTimestamp = enumerator.Current.Key;
-                            searchStartTimestampUpdateFlag = false;
+                            enumerable = await storeCompletedMessages.CreateEnumerableAsync(tx, EnumerationMode.Ordered);
                         }
-
-                        if ( deviceId == null || deviceId == enumerator.Current.Value.DeviceId)
+                        else
                         {
-                            if (index > indexStart && index <= indexEnd)
+                            searchStartTimestamp = DateTimeOffset.Parse(startTimestamp).ToUniversalTime();
+
+                            enumerable = await storeCompletedMessages.CreateEnumerableAsync(tx, EnumerationMode.Ordered);
+                            enumerator = enumerable.GetAsyncEnumerator();
+
+                            await enumerator.MoveNextAsync(appLifetime.ApplicationStopping);
+
+                            if(enumerator.Current.Key.CompareTo(searchStartTimestamp) < 0)
                             {
-                                foreach( DeviceEvent evnt in enumerator.Current.Value.Events)
-                                {
-                                    deviceMessages.AddRow( new DeviceEventRow(enumerator.Current.Key, evnt.Timestamp, enumerator.Current.Value.DeviceId, evnt.MeasurementType, evnt.SensorIndex, evnt.TempExternal, evnt.TempInternal, evnt.BatteryLevel, evnt.DataPointsCount));
-                                    break;
-                                }
+                                useIndexForTotalCount = true;
+                                enumerable = await storeCompletedMessages.CreateEnumerableAsync(tx, key => key.CompareTo(searchStartTimestamp) >= 0, EnumerationMode.Ordered);
                             }
-                            index++;
+                            else
+                            {
+                                enumerable = await storeCompletedMessages.CreateEnumerableAsync(tx, EnumerationMode.Ordered);
+                            }
                         }
+
+                        enumerator = enumerable.GetAsyncEnumerator();
+
+                        int indexStart = batchIndex;
+
+                        if (indexStart < 0)
+                            indexStart = 0;
+                        else if (indexStart > 0)
+                            indexStart--;
+
+                        indexStart = indexStart * batchSize;
+
+                        int indexEnd = indexStart + batchSize;
+
+                        if (!useIndexForTotalCount)
+                            totalCount -= indexStart;
+
+                        int index = 1;
+                        while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
+                        {
+                            if (searchStartTimestampUpdateFlag)
+                            {
+                                searchStartTimestamp = enumerator.Current.Key;
+                                searchStartTimestampUpdateFlag = false;
+                            }
+
+                            if (deviceId == null || deviceId == enumerator.Current.Value.DeviceId)
+                            {
+                                if (index > indexStart && index <= indexEnd)
+                                {
+                                    foreach (DeviceEvent evnt in enumerator.Current.Value.Events)
+                                    {
+                                        deviceMessages.AddRow(new DeviceEventRow(enumerator.Current.Key, evnt.Timestamp, enumerator.Current.Value.DeviceId, evnt.MeasurementType, evnt.SensorIndex, evnt.TempExternal, evnt.TempInternal, evnt.BatteryLevel, evnt.DataPointsCount));
+                                        break;
+                                    }
+                                }
+
+                                if (index == indexEnd & !useIndexForTotalCount)
+                                    break;
+                                index++;
+                            }
+                        }
+
+                        if (useIndexForTotalCount)
+                            totalCount = (long)index;
                     }
                     await tx.CommitAsync();
-                    deviceMessages.TotalCount = index;
+                    deviceMessages.TotalCount = totalCount;
                     deviceMessages.SearchStartTimestamp = searchStartTimestamp;
                     ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - SearchDevicesHistoryByPage - Count of[{deviceMessages.TotalCount}] for data range from [{startTimestamp}] - device [{deviceId ?? "All"}]");
                 }
@@ -287,6 +317,12 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
         [Route("queue/length")]
         public async Task<IActionResult> GetQueueLengthAsync()
         {
+            return this.Ok(await GetQueueLengthAsyncInternal());
+        }
+
+        // PRIVATE Methods
+        public async Task<long> GetQueueLengthAsyncInternal()
+        {
             long count = -1;
             IReliableDictionary<DateTimeOffset, DeviceEventSeries> storeCompletedMessages = await this.stateManager.GetOrAddAsync<IReliableDictionary<DateTimeOffset, DeviceEventSeries>>(TargetSolution.Names.EventHistoryDictionaryName);
 
@@ -310,13 +346,13 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
                 }
             }
 
-            return this.Ok(count);
+            return count;
         }
 
-        // PRIVATE Methods
-        private async Task<int> SearchDevicesHistoryCountInternal(string startTimestamp, string endTimestamp = null, string deviceId = null)
+
+        private async Task<long> SearchDevicesHistoryCountInternal(string startTimestamp, string endTimestamp = null, string deviceId = null)
         {
-            int iRet = 0;
+            long lRet = await GetQueueLengthAsyncInternal();
             IReliableDictionary<DateTimeOffset, DeviceEventSeries> storeCompletedMessages = storeCompletedMessages = await this.stateManager.GetOrAddAsync<IReliableDictionary<DateTimeOffset, DeviceEventSeries>>(TargetSolution.Names.EventHistoryDictionaryName);
 
             if (storeCompletedMessages != null)
@@ -327,32 +363,38 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
 
                 using (ITransaction tx = this.stateManager.CreateTransaction())
                 {
-                    IAsyncEnumerable<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerable = null;
-
-                    if (endTimestamp == null)
-                    {
-                        enumerable = await storeCompletedMessages.CreateEnumerableAsync(
-                                        tx, key => (key.CompareTo(intervalToSearchStart) >= 0), EnumerationMode.Ordered);
-                    }
-                    else
-                    {
-                        intervalToSearchEnd = DateTimeOffset.Parse(endTimestamp);
-                        enumerable = await storeCompletedMessages.CreateEnumerableAsync(
-                                        tx, key => (key.CompareTo(intervalToSearchStart) >= 0) && (key.CompareTo(intervalToSearchEnd) <= 0), EnumerationMode.Ordered);
-                    }
-
+                    IAsyncEnumerable<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerable = await storeCompletedMessages.CreateEnumerableAsync(tx, EnumerationMode.Ordered);
                     IAsyncEnumerator<KeyValuePair<DateTimeOffset, DeviceEventSeries>> enumerator = enumerable.GetAsyncEnumerator();
 
-                    while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
+                    await enumerator.MoveNextAsync(appLifetime.ApplicationStopping);
+
+                    if( lRet > 0  && enumerator.Current.Key.CompareTo(intervalToSearchStart) < 0)
                     {
-                        iRet++;
+                        if (endTimestamp == null)
+                        {
+                            enumerable = await storeCompletedMessages.CreateEnumerableAsync(
+                                            tx, key => (key.CompareTo(intervalToSearchStart) >= 0), EnumerationMode.Ordered);
+                        }
+                        else
+                        {
+                            intervalToSearchEnd = DateTimeOffset.Parse(endTimestamp);
+                            enumerable = await storeCompletedMessages.CreateEnumerableAsync(
+                                            tx, key => (key.CompareTo(intervalToSearchStart) >= 0) && (key.CompareTo(intervalToSearchEnd) <= 0), EnumerationMode.Ordered);
+                        }
+
+                        enumerator = enumerable.GetAsyncEnumerator();
+
+                        while (await enumerator.MoveNextAsync(appLifetime.ApplicationStopping))
+                        {
+                            lRet++;
+                        }
                     }
                     await tx.CommitAsync();
                 }
             }
-            ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - SearchDevicesHistoryCount - Count of[{iRet}] for data range from [{startTimestamp}] to [{endTimestamp ?? "empty"}] - device [{deviceId ?? "All"}]");
+            ServiceEventSource.Current.ServiceMessage(this.context, $"DataService - SearchDevicesHistoryCount - Count of[{lRet}] for data range from [{startTimestamp}] to [{endTimestamp ?? "empty"}] - device [{deviceId ?? "All"}]");
 
-            return iRet;
+            return lRet;
         }
 
         public class StateManagerHelper<TKeyType,TValueType> where TKeyType : IEquatable<TKeyType> , IComparable<TKeyType>
