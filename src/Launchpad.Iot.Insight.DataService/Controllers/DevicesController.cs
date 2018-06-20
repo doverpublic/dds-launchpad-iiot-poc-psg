@@ -370,6 +370,7 @@ namespace Launchpad.Iot.Insight.DataService.Controllers
 
                     if( lRet > 0  && enumerator.Current.Key.CompareTo(intervalToSearchStart) < 0)
                     {
+                        lRet = 0;
                         if (endTimestamp == null)
                         {
                             enumerable = await storeCompletedMessages.CreateEnumerableAsync(

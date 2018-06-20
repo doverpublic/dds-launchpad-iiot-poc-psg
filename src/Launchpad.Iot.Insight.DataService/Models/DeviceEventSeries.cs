@@ -14,17 +14,13 @@ namespace Launchpad.Iot.Insight.DataService.Models
     [DataContract]
     internal class DeviceEventSeries
     {
-        private List<DeviceEvent> EventList;
-
-        public DeviceEventSeries(string deviceId, IEnumerable<DeviceEvent> events)
+         public DeviceEventSeries(string deviceId, IEnumerable<DeviceEvent> events)
         {
             this.DeviceId = deviceId;
-            this.EventList = new List<DeviceEvent>();
+            this.Events = new List<DeviceEvent>();
 
             foreach (DeviceEvent evnt in events)
-                this.EventList.Add(new DeviceEvent(evnt.Timestamp, evnt.MeasurementType, evnt.SensorIndex, evnt.TempExternal, evnt.TempInternal, evnt.BatteryLevel, evnt.DataPointsCount, evnt.Frequency, evnt.Magnitude));
-
-            this.Events = this.EventList;
+                this.Events.Add(new DeviceEvent(evnt.Timestamp, evnt.MeasurementType, evnt.SensorIndex, evnt.TempExternal, evnt.TempInternal, evnt.BatteryLevel, evnt.DataPointsCount, evnt.Frequency, evnt.Magnitude));
 
             DeviceEvent firstEvent = events.FirstOrDefault();
 
@@ -39,17 +35,23 @@ namespace Launchpad.Iot.Insight.DataService.Models
         public DateTimeOffset Timestamp { get; set; }
 
         [DataMember]
-        public IEnumerable<DeviceEvent> Events { get; private set; }
+        public List<DeviceEvent> Events { get; private set; }
 
         
         public void AddEvent(DeviceEvent evt)
         {
-            this.EventList.Add(evt);
+            if (this.Events == null)
+                this.Events = new List<DeviceEvent>();
+
+            this.Events.Add(evt);
         }
 
         public void AddEvents(IEnumerable<DeviceEvent> events)
         {
-            this.EventList.AddRange(events);
+            if (this.Events == null)
+                this.Events = new List<DeviceEvent>();
+
+            this.Events.AddRange(events);
         }
 
     }
