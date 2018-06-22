@@ -125,7 +125,7 @@ namespace Launchpad.Iot.Insight.WebService.Controllers
                     deviceViewModelList = await DevicesController.GetDevicesDataAsync(reportParm, httpClient, fabricClient, appLifetime);
                 else
                 {
-                    resampleSetsLimit = 1;
+                    resampleSetsLimit = 3;
 
                     deviceViewModelList = new List<DeviceViewModelList>();
                     ServiceUriBuilder uriBuilder = new ServiceUriBuilder(Names.InsightDataServiceName);
